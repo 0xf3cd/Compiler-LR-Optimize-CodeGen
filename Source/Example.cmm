@@ -1,0 +1,83 @@
+int b = -20;
+int c = 2;
+
+int calcSum(int s, int e) {
+    int sum = 0;
+    int i = s;
+
+    while(i <= e) {
+        sum = sum + i;
+        i = i + 1;
+    }
+
+    return sum;
+}
+
+int plusOne(int x) {
+    return (x+1);
+}
+
+int minusOne(int x) {
+    return (x-1);
+}
+
+int multiply(int a, int b) {
+    int mul = a * b;
+    return mul;
+}
+
+// int getStart() {
+//     writec(83); //S
+//     writec(116); //t
+//     writec(97); //a
+//     writec(114); //r
+//     writec(116); //t
+//     writec(58); //:
+//     writec(32); //space
+//     return readi();
+// }
+
+// int getEnd() {
+//     writec(69); //E
+//     writec(110); //n
+//     writec(100); //d
+//     writec(58); //:
+//     writec(32); //space
+//     return readi();
+// }
+
+// void printTheSum(int result) {
+//     writec(10);
+//     writec(65); //A
+//     writec(110); //n
+//     writec(115); //s
+//     writec(119); //w
+//     writec(101); //e
+//     writec(114); //r
+//     writec(58); //:
+//     writec(32); //space
+//     writei(result);
+//     writec(10);
+// }
+
+int main() {
+    // writei(b);
+    // writef(itof(c));
+
+    // int user_s = getStart();
+    // int user_e = getEnd();
+    int s;
+    int e;
+
+    s = 13;
+    e = 15;
+    e = multiply(s, e);
+    s = plusOne(s);
+    e = minusOne(e);
+
+    int result = calcSum(s, e);
+    // printTheSum(result);
+
+    return result;
+}
+#

@@ -1,0 +1,58 @@
+// THIS IS JUST FOR TEST
+
+int program(int a, int b, int c) {
+	int i;
+	int j;
+	i = 0; //I AM A BOY
+
+	if(3 >= a) {
+		if(b != 15) {
+			if(c == 4) {
+				return j;
+			}
+		}
+	}
+
+	if(a > (b + c)) {
+		j = a + (b * c + 1);
+	} else {
+		j = a;
+	}
+
+	/* I DO NOT KNOW
+	 * WHETHER YOU CAN
+	 * SKIP ME
+	 */
+
+	while(i <= 100) {
+		i = j * 2; /* DON'T HATE ME */
+	}
+	return i;
+}
+
+int demo(int a) {
+	a = 2 * a;
+	while(a <= 1000) {
+		a = demo(a);
+	}
+	return a;
+}
+
+int omed(int x) {
+	int y;
+	y = y + 100;
+	return y * 100;
+}
+
+void main(void) {
+	int a;
+	int b;
+	int c;
+	a = 3;
+	b = 4;
+	c = 2;
+	a = program(a, b, demo(c));
+	a = omed(a);
+	return;
+}
+#

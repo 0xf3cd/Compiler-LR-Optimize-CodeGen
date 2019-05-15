@@ -1,0 +1,61 @@
+S' -> S $ 1
+S -> <Body> $ 2
+S -> <Body> S $ 3
+<Body> -> <Decl> $ 4
+<Decl> -> <VarDecl> $ 5
+<Decl> -> <FuncDecl> $ 6
+<VarDecl> -> int ID ; $ 7
+<VarDecl> -> int ID = <Exprsn> ; $ 8
+<VarDecl> -> float ID ; $ 9
+<VarDecl> -> float ID = <Exprsn> ; $ 10
+<FuncDecl> -> int ID ( <FormalParams> ) <StmtBlock> $ 11
+<FuncDecl> -> float ID ( <FormalParams> ) <StmtBlock> $ 12
+<FuncDecl> -> void ID ( <FormalParams> ) <StmtBlock> $ 13
+<FormalParams> -> <ParamList> $ 14
+<FormalParams> -> void $ 15
+<FormalParams> -> ε $ 16
+<ParamList> -> <Param> $ 17
+<ParamList> -> <Param> , <ParamList> $ 18
+<Param> -> int ID $ 19
+<Param> -> float ID $ 20
+<StmtBlock> -> { <Stmts> } $ 21
+<Stmts> -> <Stmt> <Stmts> $ 22
+<Stmts> -> <Stmt> $ 23
+<Stmt> -> <VarDecl> $ 24
+<Stmt> -> <IfStmt> $ 25
+<Stmt> -> <WhileStmt> $ 26
+<Stmt> -> <ReturnStmt> $ 27
+<Stmt> -> <AssignStmt> $ 28
+<Stmt> -> ID <FuncCall> ; $ 29
+<AssignStmt> -> ID = <Exprsn> ; $ 30
+<ReturnStmt> -> return <Exprsn> ; $ 31
+<ReturnStmt> -> return ; $ 32
+<WhileStmt> -> while ( <Exprsn> ) <StmtBlock> $ 33
+<IfStmt> -> if ( <Exprsn> ) <StmtBlock> else <StmtBlock> $ 34
+<IfStmt> -> if ( <Exprsn> ) <StmtBlock> $ 35
+<Exprsn> -> <AddExprsn> $ 36
+<Exprsn> -> <AddExprsn> < <Exprsn> $ 37
+<Exprsn> -> <AddExprsn> <= <Exprsn> $ 38
+<Exprsn> -> <AddExprsn> > <Exprsn> $ 39
+<Exprsn> -> <AddExprsn> >= <Exprsn> $ 40
+<Exprsn> -> <AddExprsn> == <Exprsn> $ 41
+<Exprsn> -> <AddExprsn> != <Exprsn> $ 42
+<AddExprsn> -> <Item> + <AddExprsn> $ 43
+<AddExprsn> -> <Item> - <AddExprsn> $ 44
+<AddExprsn> -> <Item> $ 45
+<Item> -> <Factor> * <Item> $ 46
+<Item> -> <Factor> / <Item> $ 47
+<Item> -> <Factor> $ 48
+<Factor> -> inum $ 49
+<Factor> -> - inum $ 50
+<Factor> -> fnum $ 51
+<Factor> -> - fnum $ 52
+<Factor> -> ( <Exprsn> ) $ 53
+<Factor> -> ID $ 54
+<Factor> -> ID <FuncCall> $ 55
+<FuncCall> -> ( <ActualArgs> ) $ 56
+<ActualArgs> -> <ArgList> $ 57
+<ActualArgs> -> void $ 58
+<ActualArgs> -> ε $ 59
+<ArgList> -> <Exprsn> , <ArgList> $ 60
+<ArgList> -> <Exprsn> $ 61

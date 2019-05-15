@@ -1,0 +1,139 @@
+23
+S' 1
+S 2
+<Body> 3
+<Decl> 4
+<FuncDecl> 5
+<VarDecl> 6
+<FormalParams> 7
+<StmtBlock> 8
+<ParamList> 9
+<Param> 10
+<Stmts> 11
+<Stmt> 12
+<IfStmt> 13
+<WhileStmt> 14
+<ReturnStmt> 15
+<AssignStmt> 16
+<Exprsn> 17
+<AddExprsn> 18
+<Item> 19
+<Factor> 20
+<FuncCall> 21
+<ActualArgs> 22
+<ArgList> 23
+
+28
+int 1
+float 2
+void 3
+if 4
+else 5
+while 6
+return 7
+ID 8
+inum 9
+fnum 10
+= 11
++ 12
+- 13
+* 14
+/ 15
+== 16
+!= 17
+< 18
+<= 19
+> 20
+>= 21
+; 22
+, 23
+( 24
+) 25
+{ 26
+} 27
+ε 28
+
+61
+S' -> S $
+
+S -> <Body> $
+S -> <Body> S $
+
+<Body> -> <Decl> $
+
+<Decl> -> <VarDecl> $
+<Decl> -> <FuncDecl> $
+
+<VarDecl> -> int ID ; $
+<VarDecl> -> int ID = <Exprsn> ; $
+<VarDecl> -> float ID ; $
+<VarDecl> -> float ID = <Exprsn> ; $
+
+<FuncDecl> -> int ID  ( <FormalParams> ) <StmtBlock> $
+<FuncDecl> -> float ID  ( <FormalParams> ) <StmtBlock> $
+<FuncDecl> -> void ID  ( <FormalParams> ) <StmtBlock> $
+
+<FormalParams> -> <ParamList> $
+<FormalParams> -> void $
+<FormalParams> -> ε $
+
+<ParamList> -> <Param> $
+<ParamList> -> <Param> , <ParamList> $
+
+<Param> -> int ID $
+<Param> -> float ID $
+
+<StmtBlock> -> { <Stmts> } $
+
+<Stmts> -> <Stmt> <Stmts> $
+<Stmts> -> <Stmt> $
+
+<Stmt> -> <VarDecl> $
+<Stmt> -> <IfStmt> $
+<Stmt> -> <WhileStmt> $
+<Stmt> -> <ReturnStmt> $
+<Stmt> -> <AssignStmt> $
+<Stmt> -> ID <FuncCall> ; $
+
+<AssignStmt> -> ID = <Exprsn> ; $
+
+<ReturnStmt> -> return <Exprsn> ; $
+<ReturnStmt> -> return ; $
+
+<WhileStmt> -> while ( <Exprsn> ) <StmtBlock> $
+
+<IfStmt> -> if ( <Exprsn> ) <StmtBlock> else <StmtBlock> $
+<IfStmt> -> if ( <Exprsn> ) <StmtBlock> $
+
+<Exprsn> -> <AddExprsn> $
+<Exprsn> -> <AddExprsn> < <Exprsn> $
+<Exprsn> -> <AddExprsn> <= <Exprsn> $
+<Exprsn> -> <AddExprsn> > <Exprsn> $
+<Exprsn> -> <AddExprsn> >= <Exprsn> $
+<Exprsn> -> <AddExprsn> == <Exprsn> $
+<Exprsn> -> <AddExprsn> != <Exprsn> $
+
+<AddExprsn> -> <Item> + <AddExprsn> $
+<AddExprsn> -> <Item> - <AddExprsn> $
+<AddExprsn> -> <Item> $
+
+<Item> -> <Factor> * <Item> $
+<Item> -> <Factor> / <Item> $
+<Item> -> <Factor> $
+
+<Factor> -> inum $
+<Factor> -> - inum $
+<Factor> -> fnum $
+<Factor> -> - fnum $
+<Factor> -> ( <Exprsn> ) $
+<Factor> -> ID $
+<Factor> -> ID <FuncCall> $
+
+<FuncCall> -> ( <ActualArgs> ) $
+
+<ActualArgs> -> <ArgList> $
+<ActualArgs> -> void $
+<ActualArgs> -> ε $
+
+<ArgList> -> <Exprsn> , <ArgList> $
+<ArgList> -> <Exprsn> $
