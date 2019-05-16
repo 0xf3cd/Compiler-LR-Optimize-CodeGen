@@ -1,14 +1,17 @@
-int b = -20;
-int c = 2;
+int aa = 13;
+int bb = 9 / 4 * 59;
 
 int calcSum(int s, int e) {
     int sum = 0;
     int i = s;
 
     while(i <= e) {
+        int temp = i * e;
         sum = sum + i;
         i = i + 1;
     }
+
+    e = s * 2;
 
     return sum;
 }
@@ -24,6 +27,25 @@ int minusOne(int x) {
 int multiply(int a, int b) {
     int mul = a * b;
     return mul;
+}
+
+void nothing(int x, int y) {
+    int z;
+    z = x * y / (x - y);
+    // int temp;
+    if(z > 13) {
+        int temp = z + 1;
+    } else {
+        int temp = z - 1;
+    }
+
+    if(z < 13) {
+        int temp = z + 2;
+    }
+
+    x = y + 1;
+
+    return;
 }
 
 // int getStart() {
@@ -60,6 +82,10 @@ int multiply(int a, int b) {
 //     writec(10);
 // }
 
+int a = 13 * 98 / 9 / 4;
+int b = -20;
+int c;
+
 int main() {
     // writei(b);
     // writef(itof(c));
@@ -69,8 +95,8 @@ int main() {
     int s;
     int e;
 
-    s = 13;
-    e = 15;
+    s = -13 + b;
+    e = 15 + c;
     e = multiply(s, e);
     s = plusOne(s);
     e = minusOne(e);

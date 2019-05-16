@@ -1,15 +1,16 @@
 const Parser = require('./Parser.js');
-const IR = require('./IR_Generator.js');
+const IR_Gen = require('./IR_Generator.js');
+const CodeGen = require('./CodeGen.js');
 
 let P = new Parser();
-let I = new IR();
+let I = new IR_Gen();
+let CG = new CodeGen();
 
 P.setGrammar('./Grammar/Grammar.txt');
 P.setSource('./Source/Example.cmm');
 P.initialize();
 
 I.setProdNoFilePath('./Grammar/Production-No.txt');
-I.setIRPath('./IR.ll');
 I.readProdNoFile();
 
 while(true) {
@@ -25,7 +26,15 @@ while(true) {
         break;
     }
 }
-I.showIR();
+
+const IR = I.getIR();
+// console.log(IR);
+
+CG.initialize(IR);
+CG.translate();
+const nasm = CG.showNasm();
+console.log(nasm);
+
 // I.outputIR();
 
 // console.log(`LR0: ${P.isLR0()}`);

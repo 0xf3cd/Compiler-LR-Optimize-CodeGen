@@ -3,7 +3,7 @@ const fs = require('fs');
 const Node = require('./IR_Node.js');
 const FuncTable = require('./FuncSymbolTable.js');
 const VarTable = require('./VarSymbolTable.js');
-const representFloat = require('./RepresentFloat.js').representFloat;
+// const representFloat = require('./RepresentFloat.js').representFloat;
 
 // 工具函数
 /**
@@ -133,6 +133,57 @@ const LA = new LabelAllocator();
 
 
 
+/** 
+ * 变量重名 fix 机构
+ * @class
+ */
+class VarNoAllocator {
+	constructor() {
+        /**
+         * 记录当前分配标签的编号
+         */
+		this._count = 0;
+	}
+}
+
+/**
+ * 变量重名 fix 机构复位
+ * @public
+ */
+VarNoAllocator.prototype.reset = function() {
+    this._count = 0;
+};
+
+/** 
+ * 获取一个 No
+ * @public
+ * @return {string}
+ */
+VarNoAllocator.prototype.getNewNo = function() {
+    const temp1 = Math.random().toString(36).substring(2)[0];
+    const temp2 = Math.random().toString(36).substring(2)[0];
+    const temp3 = Math.random().toString(36).substring(2)[0];
+    const labelName = `_${temp1}${temp2}${temp3}${this._count}`;
+    this._count++;
+    return labelName;
+}
+
+const VNA = new VarNoAllocator();
+
+
+
+const insSet = new Set([
+    'uminus',
+    '+',
+    '-',
+    '*',
+    '/',
+    'call',
+    'assign'
+]);
+
+
+
 /**
  * 以下的函数分别对应 58 条产生式
  * 为规约每一条产生式时，需要进行的语义动作
@@ -191,26 +242,15 @@ const f5 = function(right, VST, FST) {
     const VD = deepCopy(right[0]);
 
     D.IR = VD.IR;
-    // const allIR = D.IR.split('\n');
-    // allIR.pop(); // 除去最后的空字符串
-    // const l2 = allIR.pop();
-    // const l1 = allIR.pop(); // 得到末尾三句中间代码，即局部性的变量申明和赋值语句
-
-    // const varValue = l2.split(' ')[2].split(',')[0]; // 按照语法规范，这一部分是变量的值，语法规定这一部分只能是常数（全局变量必须为常数）
-    // if(hasLetter(varValue) === NaN) { // 说明全局变量不为常数
-    //     const errorInfo = `Global var must be declared as constant, ${varValue} is valid`;
-    //     throw new Error(errorInfo);
-    // }
-    // // 否则说明声明时指定为常数了
-    // const varName = l1.split(' ')[0].split('%')[1]; // 操作中间代码可以得到变量名（没有利用继承属性传上了）
-    // const varType = VST.getVarType(varName);
-    // VST.setGlobal(varName); // 将变量设为全局的
-    // allIR.push(`@${varName} = global ${varType === 'int'? 'i32': 'float'} ${varValue}`);
-    // //至此，成功将局部变量提升为全局变量，并修改其中间代码形式为符合 LLVM 的形式
-    
-    // D.IR = ''; //中间代码清零
-    // for(let each of allIR) {
-    //     D.IR += each.toString() + '\n';
+    // if(D.IR[0][0] === 'assign') { // global 变量
+    //     if(D.IR.length === 2) {
+    //         newIR = new Array();
+    //         newIR.push(['global', D.IR[0][1], '', D.IR[1][3]]);
+    //     } else if(D.IR.length === 1) {
+    //         newIR = new Array();
+    //         newIR.push(['global', D.IR[0][1], '', D.IR[0][3]]);
+    //     }
+    //     D.IR = newIR;
     // }
 
     return D;
@@ -242,7 +282,7 @@ const f7 = function(right, VST, FST) {
 
     VST.append(ID.val, 'int');
 
-    VD.IR.push(['assign', 0, '', ID.val]);
+    VD.IR.push(['assign', '0', '', ID.val]);
 
     return VD;
 };
@@ -366,7 +406,7 @@ const f11 = function(right, VST, FST) {
         // const nowType = (FP.paramType[i] === 'int')? 'i32': 'float';
         // FD.IR += `%${FP.paramName[i]} = alloca ${nowType}\n`;
         // FD.IR += `store ${nowType} %${i}, ${nowType}* %${FP.paramName[i]}\n`;
-        FD.IR.push(['fparam', FP.paramName[i], i+1, '']);
+        FD.IR.push(['fparam', FP.paramName[i], '', '']);
     }
     FD.IR = FD.IR.concat(SB.IR);
 
@@ -443,10 +483,10 @@ const f13 = function(right, VST, FST) {
         // const nowType = (FP.paramType[i] === 'int')? 'i32': 'float';
         // FD.IR += `%${FP.paramName[i]} = alloca ${nowType}\n`;
         // FD.IR += `store ${nowType} %${i}, ${nowType}* %${FP.paramName[i]}\n`;
-        FD.IR.push(['fparam', paramName[i], i+1, '']);
+        FD.IR.push(['fparam', FP.paramName[i], '', '']);
     }
     FD.IR = FD.IR.concat(SB.IR);
-    if(FD.IR.slice(-1)[0] !== 'ret') {
+    if(FD.IR.slice(-1)[0][0] !== 'ret') {
         FD.IR.push(['ret', '', '', '']);
     }
 
@@ -556,10 +596,28 @@ const f21 = function(right, VST, FST) {
 
     SB.IR = S.IR;
     SB.returnType = S.returnType;
-    for(let i = 0; i < S.innerVarAmount; i++) {
+    for(let i = S.innerVarAmount; i >= 1; i--) {
         VST.remove(); //离开一个语句块时，将块内声明的变量全部从符号表中移除
+        // const varName = VST.remove();
+        // SB.IR.unshift(['flocal', varName.varName, '', '']);
     }
 
+    const localVarSet = new Set();
+    for(let i = 0; i < S.IR.length; i++) {
+        const eachIR = S.IR[i];
+        if(insSet.has(eachIR[0])) {
+            if(eachIR[3] !== '') {
+                localVarSet.add(eachIR[3]);
+            }
+        }
+    }
+
+    const flocalPart = new Array();
+    for(let each of localVarSet) {
+        flocalPart.push(['flocal', each, '', '']);
+    }
+
+    SB.IR = flocalPart.concat(SB.IR);
     return SB;
 };
 
@@ -581,6 +639,35 @@ const f22 = function(right, VST, FST) {
                 const errorInfo = 'Can\'t return values of different types in a function';
                 throw new Error(errorInfo);
             }
+        }
+    }
+
+    const set1 = new Set();
+    const set2 = new Set();
+
+    for(let each of S.IR) {
+        if(each[0] === 'flocal') {
+            set1.add(each[1]);
+        }
+    }
+
+    for(let each of Ss2.IR) {
+        if(each[0] === 'flocal') {
+            set2.add(each[1]);
+        }
+    }
+
+    const intersect = new Set([...set1].filter(x => set2.has(x)));
+    for(let each of intersect) {
+        const newNo =  VNA.getNewNo();
+        for(let i = 0; i < Ss2.IR.length; i++) {
+            const eachIR = Ss2.IR[i];
+            for(let j = 0; j < eachIR.length; j++) {
+                if(eachIR[j] === each) {
+                    eachIR[j] = each + newNo;
+                }
+            }
+            Ss2.IR[i] = eachIR;
         }
     }
 
@@ -753,8 +840,8 @@ const f33 = function(right, VST, FST) {
     const newLabel1 = LA.getNewLabel();
     const newLabel2 = LA.getNewLabel();
 
-    WS.IR = E.IR;
     WS.IR.push(['label', '', '', newLabel1]);
+    WS.IR = WS.IR.concat(E.IR);
     WS.IR.push(['je', E.val, 0, newLabel2]); // 如果条件为假
     WS.IR = WS.IR.concat(SB.IR);
     WS.IR.push(['goto', '', '', newLabel1]);
@@ -789,6 +876,49 @@ const f34 = function(right, VST, FST) {
     }
     // 类型检查通过
 
+    // if(SB1.innerVarAmount !== 0 || SB2.innerVarAmount !== 0) {
+    //     throw new Error('No new vars in if branch');
+    // }
+
+    // for(let i = SB1.innerVarAmount; i >= 1; i--) {
+    //     const varName = VST.remove(); //离开一个语句块时，将块内声明的变量全部从符号表中移除
+    //     SB1.IR.unshift(['flocal', varName.varName, '', '']);
+    // }
+
+    // for(let i = SB2.innerVarAmount; i >= 1; i--) {
+    //     const varName = VST.remove(); //离开一个语句块时，将块内声明的变量全部从符号表中移除
+    //     SB2.IR.unshift(['flocal', varName.varName, '', '']);
+    // }
+
+    const set1 = new Set();
+    const set2 = new Set();
+
+    for(let each of SB1.IR) {
+        if(each[0] === 'flocal') {
+            set1.add(each[1]);
+        }
+    }
+
+    for(let each of SB2.IR) {
+        if(each[0] === 'flocal') {
+            set2.add(each[1]);
+        }
+    }
+
+    const intersect = new Set([...set1].filter(x => set2.has(x)));
+    for(let each of intersect) {
+        const newNo =  VNA.getNewNo();
+        for(let i = 0; i < SB2.IR.length; i++) {
+            const eachIR = SB2.IR[i];
+            for(let j = 0; j < eachIR.length; j++) {
+                if(eachIR[j] === each) {
+                    eachIR[j] = each + newNo;
+                }
+            }
+            SB2.IR[i] = eachIR;
+        }
+    }
+
     const newLabel1 = LA.getNewLabel();
     const newLabel2 = LA.getNewLabel();
 
@@ -816,9 +946,17 @@ const f35 = function(right, VST, FST) {
     // 类型检查通过
 
     IS.returnType = SB.returnType;
+    // if(SB.innerVarAmount !== 0) {
+    //     throw new Error('No new vars in if branch');
+    // }
     // for(let i = 0; i < SB.innerVarAmount; i++) {
     //     // 离开一个语句块时，将其中声明的变量从符号表中移除
     //     VST.remove();
+    // }
+
+    // for(let i = SB.innerVarAmount; i >= 1; i--) {
+    //     const varName = VST.remove(); //离开一个语句块时，将块内声明的变量全部从符号表中移除
+    //     SB.IR.unshift(['flocal', varName.varName, '', '']);
     // }
 
     const newLabel1 = LA.getNewLabel();
@@ -1166,8 +1304,8 @@ const f50 = function(right, VST, FST) {
     const newTemp = TA.getNewTemp();
     F.val = newTemp; ;
     F.valType = 'int';
-    F.IR.push(['assign', inum.val, '', F.val]);
-    F.IR.push(['unimus', F.val, '', F.val]);
+    F.IR.push(['assign', '-'+inum.val, '', F.val]);
+    // F.IR.push(['unimus', F.val, '', F.val]);
 
     return F;
 };
@@ -1254,7 +1392,7 @@ const f55 = function(right, VST, FST) {
 
     F.IR = FC.IR;
     
-    for(let each of FC.args) {
+    for(let each of FC.args.reverse()) {
         F.IR.push(['param', each, '', ''])
     }
 
@@ -1347,14 +1485,14 @@ class IR_Generator {
          * @private
          * @type {string}
          */
-        this._filePath = './Grammar/Production-No.txt';
+        // this._filePath = './Grammar/Production-No.txt';
 
         /**
          * 生成中间代码的存放地址
          * @private
          * @type {string}
          */
-        this._IR_Path = './IR/IR.ll';
+        // this._IR_Path = './IR/IR.ll';
 
         /**
          * 产生式编号表
@@ -1405,7 +1543,7 @@ class IR_Generator {
          * @private
          * @type {string}
          */
-        this._IR_Head = null;
+        // this._IR_Head = null;
 
         /**
          * 储存的中间代码（分析完成后自动储存）
@@ -1482,9 +1620,9 @@ IR_Generator.prototype.setProdNoFilePath = function(newFilePath) {
  * @public
  * @param {string} newIRPath
  */
-IR_Generator.prototype.setIRPath = function(newIRPath) {
-    this._IR_Path = newIRPath;
-};
+// IR_Generator.prototype.setIRPath = function(newIRPath) {
+//     this._IR_Path = newIRPath;
+// };
 
 /**
  * 读取产生式编号表
@@ -1518,13 +1656,16 @@ IR_Generator.prototype.readProdNoFile = function() {
  */
 IR_Generator.prototype.analyze = function(record) {
     if(record.parseResult[0] === 's') {
-        console.log('shift in: ' + record.tokenValue);
+        // console.log('shift in: ' + record.tokenValue);
         const N = new Node();
         N.name = record.symbolName;
         N.val = record.tokenValue;
+        if(N.name === 'ID') {
+            N.val = '_' + N.val;
+        }
         this._topNodes.push(N);
     } else if(record.parseResult[0] === 'r') {
-        console.log('reduce: ' + record.productionLeft + ' -> ' + record.productionRight);
+        // console.log('reduce: ' + record.productionLeft + ' -> ' + record.productionRight);
         const f = this._getFunc(record); // 得到语义分析函数
 
         const rightNodes = new Array();
@@ -1544,7 +1685,7 @@ IR_Generator.prototype.analyze = function(record) {
         leftNode.name = record.productionLeft;
         this._topNodes.push(leftNode);
     } else if(record.parseResult === 'acc') {
-        console.log('acc');
+        // console.log('acc');
         this._IR_Code = this._topNodes[0].IR;
     } else if(record.parseResult === 'error') {
         console.log('error');
@@ -1560,16 +1701,153 @@ IR_Generator.prototype.analyze = function(record) {
  * 输出分析后的中间代码到文件
  * @public
  */
-IR_Generator.prototype.outputIR = function() {
-    fs.writeFileSync(this._IR_Path, this._IR_Head + this._IR_Code);
+IR_Generator.prototype.getOriginIR = function() {
+    return this._IR_Code;
+};
+
+/**
+ * 将中间代码进行拆分
+ * @private
+ * @param {Array} IR
+ */
+IR_Generator.prototype._split = function() {
+    const length = this._IR_Code.length;
+    const global = new Array();
+    const funcs = new Array();
+    let func = new Array();
+    let isGlobal = true;
+
+    for(let i = length-1; i >= 0; i--) {
+        const eachIR = this._IR_Code[i];
+        
+        if(isGlobal) {
+            if(eachIR[0] === 'ret') {
+                isGlobal = false;
+                func.unshift(eachIR);
+            } else {
+                global.unshift(eachIR);
+            }
+        } else {
+            if(eachIR[0] === 'func') {
+                isGlobal = true;
+                func.unshift(eachIR);
+
+                funcs.push(func);
+                func = new Array();
+            } else {
+                func.unshift(eachIR);
+            }
+        }
+    }
+
+    return {
+        global: global,
+        funcs: funcs
+    };
+};
+
+/**
+ * 调整函数部分中间代码
+ * @private
+ * @param {Array} IR
+ * @return {Array}
+ */
+IR_Generator.prototype._adjustFunc = function(IR) {
+    const newIR = new Array();
+    const fparamSet = new Set();
+    const flocalSet = new Set();
+
+    for(let i = 0; i < IR.length; i++) {
+        const eachIR = IR[i];
+
+        if(eachIR[0] === 'fparam') {
+            fparamSet.add(eachIR[1]);
+            newIR.push(eachIR);
+            continue;
+        }
+
+        if(eachIR[0] === 'flocal') {
+            if(!fparamSet.has(eachIR[1]) && !flocalSet.has(eachIR[1])) {
+                flocalSet.add(eachIR[1]);
+                newIR.push(eachIR);
+            }
+            continue;
+        }
+
+        newIR.push(eachIR);
+    }
+
+    return newIR;
+};
+
+/**
+ * 调整全局变量部分中间代码
+ * @private
+ * @param {Array} IR
+ * @return {Array}
+ */
+IR_Generator.prototype._adjustGlobal = function(IR) {
+    let newIR = new Array();
+
+    const dataIR = new Array();
+    const bssVarSet = new Set();
+
+    for(let i = 0; i < IR.length; i++) {
+        const eachIR = IR[i];
+        if(eachIR[0] === 'assign' && !isNaN(parseInt(eachIR[1]))) {
+            // 如果某个变量被直接用立即数赋值
+            dataIR.push(['data', eachIR[3], eachIR[1], '']);
+            continue;
+        }
+
+        if(insSet.has(eachIR[0])) {
+            if(eachIR[3] !== '') {
+                bssVarSet.add(eachIR[3]);
+            }
+        }
+        newIR.push(eachIR);
+    }
+
+    const bbsIR = new Array();
+    for(let each of bssVarSet) {
+        bbsIR.push(['bss', each, '', '']);
+    }
+    newIR = bbsIR.concat(newIR);
+    newIR = dataIR.concat(newIR);
+
+    return newIR;
 };
 
 /**
  * 输出分析后的中间代码
  * @public
+ * @param {Array} IR
  */
-IR_Generator.prototype.showIR = function() {
-    console.log(this._IR_Code);
+IR_Generator.prototype.getIR = function() {
+    const splitedIR = this._split(this._IR_Code);
+    const adjustedFuncs = new Array();
+    const adjustedGlobal = this._adjustGlobal(splitedIR.global);
+    const funcVarNum = new Map();
+
+    for(let each of splitedIR.funcs) {
+        const newEach = this._adjustFunc(each);
+        adjustedFuncs.push(newEach);
+
+        const funcName = newEach[0][3];
+        let fparamNum = 0;
+        let flocalNum = 0;
+        for(let each of newEach) {
+            if(each[0] === 'flocal') { flocalNum++; }
+            if(each[0] === 'fparam') { fparamNum++; }
+        }
+        funcVarNum.set(funcName, [fparamNum, flocalNum]);
+    }
+
+    return {
+        global: adjustedGlobal,
+        funcs: adjustedFuncs,
+        funcVarNum: funcVarNum
+    };
 };
 
 

@@ -95,6 +95,17 @@ VarSymbolTable.prototype.remove = function() {
 };
 
 /**
+ * 得到倒数第 index 个变量
+ * @public
+ * @param {number} index 
+ * @return {VarItem}
+ */
+VarSymbolTable.prototype.getLast = function(index) {
+    const removedItem = this._table.slice(-index)[0];
+    return removedItem;
+};
+
+/**
  * 查询是否有某名字的变量
  * @public
  * @param {string} varName
