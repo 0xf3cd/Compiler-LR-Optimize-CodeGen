@@ -10,9 +10,28 @@ section .data
     x:      dq      101
 
 section .bss
-    temp:   resq   1 ; RESB, RESW, RESD, RESQ, REST, RESO, RESY and RESZ
+    temp:   resq    1 ; RESB, RESW, RESD, RESQ, REST, RESO, RESY and RESZ
+    printv: resq    1
 
 section .text
+print:
+    push    rbp
+    mov     rbp, rsp
+    ; sub     rsp, 8
+
+    mov     rcx, qword [rbp+16]
+
+    mov     rax, 0x2000004 ; write
+    mov     rdi, 1 ; stdout
+    mov     rsi, rcx ; msg
+    mov     rdx, 1 ; msg.len
+    syscall
+
+    ; mov     rax, [rbp-8]
+    mov     rsp, rbp
+    pop     rbp
+    ret
+
 sum:
     push    rbp
     mov     rbp, rsp
@@ -40,14 +59,7 @@ _div:
     mov     rax, rbx
     idiv    rcx
     mov     [rbp-8], rax
-    jmp     L1
-L1:
-L2:
-    sub     rax, rax
-    jbe     L3
-L3:
-    add     rax, rax
-    jmp     L2
+
     mov     rax, [rbp-8]
     mov     rsp, rbp
     pop     rbp
@@ -65,13 +77,13 @@ start:
     
     ; mov     byte [temp], byte 97
     ; mov     [temp], ax
-    mov     rcx, x
-    mov     rdx, rax
+    mov     rcx, printv
+    mov     rdx, 97
     mov     [rcx], rdx
 
     mov     rax, 0x2000004 ; write
     mov     rdi, 1 ; stdout
-    mov     rsi, x ; msg
+    mov     rsi, printv; x ; msg
     mov     rdx, 1 ; msg.len
     syscall
 

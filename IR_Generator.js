@@ -182,6 +182,17 @@ const insSet = new Set([
     'assign'
 ]);
 
+// 预先设定好的 可以直接使用的函数，在 CodeGen 阶段也会有相应动作
+// 在初始化 IR_Generator 以及执行 getIR 方法时，会读取 builtInFucs，并执行相应动作
+// 相应动作：在符号表内添加需要用到的全局变量和 print 等函数
+const builtInFuncs = new Map();
+builtInFuncs.set('_print', [
+    'void',
+    ['int'],
+    ['itDoesntMatter'],
+    [1, 0],
+    [['bss', 'out', '', '']]
+]);
 
 
 /**
@@ -772,8 +783,9 @@ const f29 = function(right, VST, FST) {
     for(let each of FC.args) {
         S.IR.push(['param', each, '', ''])
     }
-    // 函数返回值一定不为 void
-    S.IR.push(['call', ID.val, '', S.val]);
+    
+    S.IR.push(['call', ID.val, '', '']);
+    S.returnType = 'void';
 
     return S;
 };
@@ -946,18 +958,6 @@ const f35 = function(right, VST, FST) {
     // 类型检查通过
 
     IS.returnType = SB.returnType;
-    // if(SB.innerVarAmount !== 0) {
-    //     throw new Error('No new vars in if branch');
-    // }
-    // for(let i = 0; i < SB.innerVarAmount; i++) {
-    //     // 离开一个语句块时，将其中声明的变量从符号表中移除
-    //     VST.remove();
-    // }
-
-    // for(let i = SB.innerVarAmount; i >= 1; i--) {
-    //     const varName = VST.remove(); //离开一个语句块时，将块内声明的变量全部从符号表中移除
-    //     SB.IR.unshift(['flocal', varName.varName, '', '']);
-    // }
 
     const newLabel1 = LA.getNewLabel();
     
@@ -1581,6 +1581,9 @@ IR_Generator.prototype._initialize = function() {
     // this._funcTable.append('writec', 'void', ['int'], ['itDoesntMatter']);
     // this._funcTable.append('itof', 'float', ['int'], ['itDoesntMatter']);
     // this._funcTable.append('ftoi', 'int', ['float'], ['itDoesntMatter']);
+    for(let [k, v] of builtInFuncs) {
+        this._funcTable.append(k, v[0], v[1], v[2]); // 可以直接使用的函数
+    }
 };
 
 /**
@@ -1812,6 +1815,11 @@ IR_Generator.prototype._adjustGlobal = function(IR) {
     for(let each of bssVarSet) {
         bbsIR.push(['bss', each, '', '']);
     }
+    for(let [k, v] of builtInFuncs) {
+        for(let each of v[4]) {
+            bbsIR.push(each);
+        }
+    }
     newIR = bbsIR.concat(newIR);
     newIR = dataIR.concat(newIR);
 
@@ -1841,6 +1849,10 @@ IR_Generator.prototype.getIR = function() {
             if(each[0] === 'fparam') { fparamNum++; }
         }
         funcVarNum.set(funcName, [fparamNum, flocalNum]);
+    }
+
+    for(let [k, v] of builtInFuncs) {
+        funcVarNum.set(k, v[3]); // 可以直接使用的函数
     }
 
     return {

@@ -104,6 +104,10 @@ int main() {
     int result = calcSum(s, e);
     // printTheSum(result);
 
+    print(plusOne(97));
+    print(10);
+    nothing(1, 3);
+
     return result;
 }
 #

@@ -328,9 +328,12 @@ CodeGen.prototype._translateOneIR = function(IR) {
         nasm.push(`\tpush\tqword\trcx`);    // 压栈变量
     } else if(p1 === 'call') {
         nasm.push(`\tcall\t${p2}`);         // 压栈变量
-        if(p4 !== '') {
+        // console.log(p2, this._funcVarNum.get(p2))
+        if(this._funcVarNum.get(p2)[0] !== 0) {
             nasm.push(`\tadd\t\trsp, ${8*this._funcVarNum.get(p2)[0]}`);   // rbx 变量地址
+        }
 
+        if(p4 !== '') {
             if(f4) {
                 nasm.push(`\tmov\t\trbx, ${v4}`);   // rbx 变量地址
                 nasm.push(`\tmov\t\t[rbx], rax`);   // 变量 <- rax
@@ -388,7 +391,7 @@ CodeGen.prototype._translateGlobal = function() {
         globalVars.add(eachIR[1]);
 
         let dataName = eachIR[1] + ':';
-        if(dataName.length > 4) { dataName += '\t' }
+        if(dataName.length >= 4) { dataName += '\t' }
         else { dataName += '\t\t' }
         
         dataNasm.push(`\t${dataName}dq\t${eachIR[2]}`);
@@ -406,7 +409,7 @@ CodeGen.prototype._translateGlobal = function() {
         globalVars.add(eachIR[1]);
 
         let bssName = eachIR[1] + ':';
-        if(bssName.length > 4) { bssName += '\t' }
+        if(bssName.length >= 4) { bssName += '\t' }
         else { bssName += '\t\t' }
 
         bssNasm.push(`\t${bssName}resq\t1`);
@@ -422,6 +425,11 @@ CodeGen.prototype._translateGlobal = function() {
         startNasm = startNasm.concat(IRNasm);
         i++;
     }
+
+    startNasm.push(`\tcall\t_main`);
+    startNasm.push(`\tmov\t\trax, 0x2000001`);
+    startNasm.push(`\tmov\t\trdi, 0`);
+    startNasm.push(`\tsyscall`);
 
     this._text.push(startNasm);
     // nasm.push('');
@@ -484,6 +492,31 @@ CodeGen.prototype._translateFunc = function() {
     }
 };
 
+
+/**
+ * 加入 IR_Generator.js 中 builtInFuncs 中函数的汇编代码
+ * @private
+ */
+CodeGen.prototype._addBuiltInFuncs = function() {
+    const print = new Array();
+    print.push('_print:');
+    print.push('\tpush\trbp');
+    print.push('\tmov\t\trbp, rsp');
+    print.push('\tmov\t\trcx, out');
+    print.push('\tmov\t\trdx, qword [rbp+16]');
+    print.push('\tmov\t\t[rcx], rdx');
+    print.push('\tmov\t\trax, 0x2000004');
+    print.push('\tmov\t\trdi, 1');
+    print.push('\tmov\t\trsi, out');
+    print.push('\tmov\t\trdi, 1');
+    print.push('\tsyscall');
+    print.push('\tmov\t\trsp, rbp');
+    print.push('\tpop\t\trbp');
+    print.push('\tret');
+
+    this._text.push(print);
+}; 
+
 /**
  * 将中间代码翻译成汇编代码（NASM 格式）
  * @public
@@ -496,6 +529,7 @@ CodeGen.prototype.translate = function() {
 
     this._translateGlobal();
     this._translateFunc();
+    this._addBuiltInFuncs();
 
     this._text = this._text.reverse();
 

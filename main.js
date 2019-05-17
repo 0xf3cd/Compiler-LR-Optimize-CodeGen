@@ -13,6 +13,8 @@ P.initialize();
 I.setProdNoFilePath('./Grammar/Production-No.txt');
 I.readProdNoFile();
 
+// console.log(P.isSLR1());
+
 while(true) {
     let record = P.getNext();
 
