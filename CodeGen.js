@@ -502,19 +502,36 @@ CodeGen.prototype._addBuiltInFuncs = function() {
     print.push('_print:');
     print.push('\tpush\trbp');
     print.push('\tmov\t\trbp, rsp');
-    print.push('\tmov\t\trcx, out');
+    print.push('\tmov\t\trcx, outv');
     print.push('\tmov\t\trdx, qword [rbp+16]');
     print.push('\tmov\t\t[rcx], rdx');
     print.push('\tmov\t\trax, 0x2000004');
     print.push('\tmov\t\trdi, 1');
-    print.push('\tmov\t\trsi, out');
-    print.push('\tmov\t\trdi, 1');
+    print.push('\tmov\t\trsi, outv');
+    print.push('\tmov\t\trdx, 1');
     print.push('\tsyscall');
     print.push('\tmov\t\trsp, rbp');
     print.push('\tpop\t\trbp');
     print.push('\tret');
 
     this._text.push(print);
+
+    const read = new Array();
+    read.push('_read:');
+    read.push('\tpush\trbp');
+    read.push('\tmov\t\trbp, rsp');
+    read.push('\tmov\t\trax, 0x2000003');
+    read.push('\tmov\t\trdi, 0');
+    read.push('\tmov\t\trsi, inv');
+    read.push('\tmov\t\trdx, 1');
+    read.push('\tsyscall');
+    read.push('\tmov\t\trcx, inv');
+    read.push('\tmov\t\trax, [rcx]');
+    read.push('\tmov\t\trsp, rbp');
+    read.push('\tpop\t\trbp');
+    read.push('\tret');
+
+    this._text.push(read);
 }; 
 
 /**

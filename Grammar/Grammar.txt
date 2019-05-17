@@ -1,27 +1,28 @@
-23
+24
 S' 1
 S 2
 <Body> 3
 <Decl> 4
-<FuncDecl> 5
-<VarDecl> 6
-<FormalParams> 7
-<StmtBlock> 8
-<ParamList> 9
-<Param> 10
-<Stmts> 11
-<Stmt> 12
-<IfStmt> 13
-<WhileStmt> 14
-<ReturnStmt> 15
-<AssignStmt> 16
-<Exprsn> 17
-<AddExprsn> 18
-<Item> 19
-<Factor> 20
-<FuncCall> 21
-<ActualArgs> 22
-<ArgList> 23
+<FuncHead> 5
+<FuncDecl> 6
+<VarDecl> 7
+<FormalParams> 8
+<StmtBlock> 9
+<ParamList> 10
+<Param> 11
+<Stmts> 12
+<Stmt> 13
+<IfStmt> 14
+<WhileStmt> 15
+<ReturnStmt> 16
+<AssignStmt> 17
+<Exprsn> 18
+<AddExprsn> 19
+<Item> 20
+<Factor> 21
+<FuncCall> 22
+<ActualArgs> 23
+<ArgList> 24
 
 28
 int 1
@@ -53,7 +54,7 @@ fnum 10
 } 27
 ε 28
 
-61
+62
 S' -> S $
 
 S -> <Body> $
@@ -69,9 +70,11 @@ S -> <Body> S $
 <VarDecl> -> float ID ; $
 <VarDecl> -> float ID = <Exprsn> ; $
 
-<FuncDecl> -> int ID  ( <FormalParams> ) <StmtBlock> $
-<FuncDecl> -> float ID  ( <FormalParams> ) <StmtBlock> $
-<FuncDecl> -> void ID  ( <FormalParams> ) <StmtBlock> $
+<FuncDecl> -> <FuncHead> <StmtBlock> $
+
+<FuncHead> -> int ID  ( <FormalParams> ) $
+<FuncHead> -> float ID  ( <FormalParams> ) $
+<FuncHead> -> void ID  ( <FormalParams> ) $
 
 <FormalParams> -> <ParamList> $
 <FormalParams> -> void $

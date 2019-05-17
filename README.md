@@ -1,14 +1,19 @@
 # Compiler-LR-Optimize-CodeGen
 
-## First of All
+## How to run
 
-- 之前项目 `Compiler-Semantic-Analyzer` 结合 `LLVM` 已经可以生成可执行文件（Mac 上）
-- 在不修改代码的情况下，执行 `node main.js` 可以生成 `./Source/Example.cmm` 对应的中间代码
-- 对老师提供的文法进行了一些改变
+- the project is working with Node.js
+- `node main.js` to run 
+- in folder `Assignments` are some description files related to the assignment
+- in folder `Grammar`, the description of grammar is saved
+- in folder `dylib` are the dynamic link libraries used for tokenizing and parsing, which are from the project `https://github.com/nqmaigre/Compiler-Parser-LR`
+- in `main.js`, `srcFileDir` is set to the directory of the src file
+- in `main.js`, `nasmFileDir` is set to the directory of the asm file
+- in `main.js`, `exeFileDir` is set to the directory of the aim executable file
 
 ## 说明
 
-- 由 C++ 完成了链接库 `LR.dll` 及 `LR.dylib`
+- 由 C++ 完成了链接库 `LR.dll` 及 `LR.dylib` (from `https://github.com/nqmaigre/Compiler-Parser-LR`)
 - 后续工作由 JavaScript 完成，使用 `Electron` 作为跨平台的图形开发框架
 - `./DyLib/` 中存放 Mac 和 Windows 下的动态链接库
 - `./Grammar/` 中存放语法描述文件

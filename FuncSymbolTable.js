@@ -105,6 +105,16 @@ FuncSymbolTable.prototype.getReturnType = function(funcName) {
     return null;
 };
 
+FuncSymbolTable.prototype.getParamNum = function(funcName) {
+    for(let i = 0; i < this._table.length; i++) { // 遍历函数表
+        const each = this._table[i];
+        if(funcName === each.funcName) {
+            return each.paramName.length;
+        }
+    }
+    return -1;
+};
+
 /**
  * 在函数表中添加一项
  * @public

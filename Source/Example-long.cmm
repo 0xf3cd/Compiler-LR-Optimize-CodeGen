@@ -31,11 +31,13 @@ int program(int a, int b, int c) {
 }
 
 int demo(int a) {
-	a = 2 * a;
-	while(a <= 1000) {
-		a = demo(a);
+	// print(a);
+	// print(10);
+	if(a >= 97) {
+		return a;
+	} else {
+		return demo(2*a);
 	}
-	return a;
 }
 
 int omed(int x) {
@@ -51,8 +53,13 @@ void main(void) {
 	a = 3;
 	b = 4;
 	c = 2;
-	a = program(a, b, demo(c));
+	// a = program(a, b, demo(c));
 	a = omed(a);
+	// print(98);
+
+	b = demo(7);
+	// print(97);
+	print(b);
 	return;
 }
 #

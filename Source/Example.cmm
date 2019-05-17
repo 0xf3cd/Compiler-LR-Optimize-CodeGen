@@ -48,40 +48,6 @@ void nothing(int x, int y) {
     return;
 }
 
-// int getStart() {
-//     writec(83); //S
-//     writec(116); //t
-//     writec(97); //a
-//     writec(114); //r
-//     writec(116); //t
-//     writec(58); //:
-//     writec(32); //space
-//     return readi();
-// }
-
-// int getEnd() {
-//     writec(69); //E
-//     writec(110); //n
-//     writec(100); //d
-//     writec(58); //:
-//     writec(32); //space
-//     return readi();
-// }
-
-// void printTheSum(int result) {
-//     writec(10);
-//     writec(65); //A
-//     writec(110); //n
-//     writec(115); //s
-//     writec(119); //w
-//     writec(101); //e
-//     writec(114); //r
-//     writec(58); //:
-//     writec(32); //space
-//     writei(result);
-//     writec(10);
-// }
-
 int a = 13 * 98 / 9 / 4;
 int b = -20;
 int c;
@@ -104,9 +70,30 @@ int main() {
     int result = calcSum(s, e);
     // printTheSum(result);
 
-    print(plusOne(97));
-    print(10);
+    // int temp = read();
+    // print(plusOne(temp));
+    // print(10);
     nothing(1, 3);
+    int x = read();
+    // print(plusOne(x));
+    // print(10);
+    int i = 0;
+    while(i < 10) {
+        print(x+i);
+        print(x+i+1);
+        print(x+i+2);
+        if(x > 97) {
+            print(10);
+        } else {
+            print(88);
+            print(10);
+        }
+        // print(x+2);
+        // print(x+3);
+        // print(10);
+        i = i + 1;
+
+    }
 
     return result;
 }

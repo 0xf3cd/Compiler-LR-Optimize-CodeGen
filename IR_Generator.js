@@ -191,7 +191,14 @@ builtInFuncs.set('_print', [
     ['int'],
     ['itDoesntMatter'],
     [1, 0],
-    [['bss', 'out', '', '']]
+    [['bss', 'outv', '', '']]
+]);
+builtInFuncs.set('_read', [
+    'int',
+    [],
+    [],
+    [0, 0],
+    [['bss', 'inv', '', '']]
 ]);
 
 
@@ -206,7 +213,7 @@ builtInFuncs.set('_print', [
  * @return {Node}
  */
 const f1 = function(right, VST, FST) {
-    // S' -> S $ 1
+    // S' -> S $ 
     const S_ = new Node();
     const S = deepCopy(right[0]);
 
@@ -216,7 +223,7 @@ const f1 = function(right, VST, FST) {
 };
 
 const f2 = function(right, VST, FST) {
-    // S -> <Body> $ 2
+    // S -> <Body> $ 
     const S = new Node();
     const B = deepCopy(right[0]);
 
@@ -226,7 +233,7 @@ const f2 = function(right, VST, FST) {
 };
 
 const f3 = function(right, VST, FST) {
-    // S -> <Body> S $ 3
+    // S -> <Body> S $ 
     const S1 = new Node();
     const B = deepCopy(right[0]);
     const S2 = deepCopy(right[1]);
@@ -238,7 +245,7 @@ const f3 = function(right, VST, FST) {
 };
 
 const f4 = function(right, VST, FST) {
-    // <Body> -> <Decl> $ 4
+    // <Body> -> <Decl> $ 
     const B = new Node();
     const D = deepCopy(right[0]);
 
@@ -248,7 +255,7 @@ const f4 = function(right, VST, FST) {
 };
 
 const f5 = function(right, VST, FST) {
-    // <Decl> -> <VarDecl> $ 5
+    // <Decl> -> <VarDecl> $ 
     const D = new Node();
     const VD = deepCopy(right[0]);
 
@@ -268,7 +275,7 @@ const f5 = function(right, VST, FST) {
 };
 
 const f6 = function(right, VST, FST) {
-    // <Decl> -> <FuncDecl> $ 6
+    // <Decl> -> <FuncDecl> $ 
     const D = new Node();
     const FD = deepCopy(right[0]);
 
@@ -278,7 +285,7 @@ const f6 = function(right, VST, FST) {
 };
 
 const f7 = function(right, VST, FST) {
-    // <VarDecl> -> int ID ; $ 7
+    // <VarDecl> -> int ID ; $ 
     const VD = new Node();
     const ID = deepCopy(right[1]);
 
@@ -299,7 +306,7 @@ const f7 = function(right, VST, FST) {
 };
 
 const f8 = function(right, VST, FST) {
-    // <VarDecl> -> int ID = <Exprsn> ; $ 8
+    // <VarDecl> -> int ID = <Exprsn> ; $ 
     const VD = new Node();
     const ID = deepCopy(right[1]);
     const E = deepCopy(right[3]);
@@ -326,7 +333,7 @@ const f8 = function(right, VST, FST) {
 };
 
 const f9 = function(right, VST, FST) {
-    // <VarDecl> -> float ID ; $ 9
+    // <VarDecl> -> float ID ; $ 
     throw new Error('Not support float');
     // const VD = new Node();
     // const ID = deepCopy(right[1]);
@@ -354,7 +361,7 @@ const f9 = function(right, VST, FST) {
 };
 
 const f10 = function(right, VST, FST) {
-    // <VarDecl> -> float ID = <Exprsn> ; $ 10
+    // <VarDecl> -> float ID = <Exprsn> ; $ 
     throw new Error('Not support float');
     // const VD = new Node();
     // const ID = deepCopy(right[1]);
@@ -393,16 +400,43 @@ const f10 = function(right, VST, FST) {
 };
 
 const f11 = function(right, VST, FST) {
-    // <FuncDecl> -> int ID  ( <FormalParams> ) <StmtBlock> $ 11
+    // <FuncDecl> -> <FuncHead> <StmtBlock> $
     const FD = new Node();
-    const ID = deepCopy(right[1]);
-    const FP = deepCopy(right[3]);
-    const SB = deepCopy(right[5]);
+    const FH = deepCopy(right[0]);
+    const SB = deepCopy(right[1]);
 
-    if(SB.returnType !== 'int') {
+    const funcName = FH.IR[0][3];
+    const funcReturnType = FST.getReturnType(funcName);
+
+    if(SB.returnType !== funcReturnType) {
         const errorInfo = 'Return type differs from function declaration';
         throw new Error(errorInfo);
     }
+
+    FD.IR = FH.IR;
+    FD.IR = FD.IR.concat(SB.IR);
+    if(FD.IR.slice(-1)[0][0] !== 'ret') {
+        FD.IR.push(['ret', '', '', '']);
+    }
+
+    for(let i = 0; i < FST.getParamNum(funcName); i++) {
+        VST.remove();
+    } // 将之前压入符号表的形式参数弹出
+
+    return FD;
+};
+
+const f12 = function(right, VST, FST) {
+    // <FuncHead> -> int ID  ( <FormalParams> ) $ 
+    const FH = new Node();
+    const ID = deepCopy(right[1]);
+    const FP = deepCopy(right[3]);
+    // const SB = deepCopy(right[5]);
+
+    // if(SB.returnType !== 'int') {
+    //     const errorInfo = 'Return type differs from function declaration';
+    //     throw new Error(errorInfo);
+    // }
     if(VST.hasVar(ID.val)) {
         const errorInfo = 'A var that has the same name declared';
         throw new Error(errorInfo);
@@ -412,26 +446,26 @@ const f11 = function(right, VST, FST) {
         throw new Error(errorInfo);
     }
 
-    FD.IR.push(['func', '', '', ID.val]);
+    FH.IR.push(['func', '', '', ID.val]);
     for(let i = 0; i < FP.paramName.length; i++) {
         // const nowType = (FP.paramType[i] === 'int')? 'i32': 'float';
         // FD.IR += `%${FP.paramName[i]} = alloca ${nowType}\n`;
         // FD.IR += `store ${nowType} %${i}, ${nowType}* %${FP.paramName[i]}\n`;
-        FD.IR.push(['fparam', FP.paramName[i], '', '']);
+        FH.IR.push(['fparam', FP.paramName[i], '', '']);
     }
-    FD.IR = FD.IR.concat(SB.IR);
+    // FD.IR = FD.IR.concat(SB.IR);
 
     FST.append(ID.val, 'int', FP.paramType, FP.paramName);
 
-    for(let i = 0; i < FP.paramName.length; i++) {
-        VST.remove();
-    } // 将之前压入符号表的形式参数弹出
+    // for(let i = 0; i < FP.paramName.length; i++) {
+    //     VST.remove();
+    // } // 将之前压入符号表的形式参数弹出
 
-    return FD;
+    return FH;
 };
 
-const f12 = function(right, VST, FST) {
-    // <FuncDecl> -> float ID  ( <FormalParams> ) <StmtBlock> $ 12
+const f13 = function(right, VST, FST) {
+    // <FuncHead> -> float ID  ( <FormalParams> ) $
     throw new Error('Not support float');
     // const FD = new Node();
     // const ID = deepCopy(right[1]);
@@ -469,17 +503,17 @@ const f12 = function(right, VST, FST) {
     // return FD;
 };
 
-const f13 = function(right, VST, FST) {
-    // <FuncDecl> -> void ID  ( <FormalParams> ) <StmtBlock> $ 13
-    const FD = new Node();
+const f14 = function(right, VST, FST) {
+    // <FuncHead> -> void ID  ( <FormalParams> ) $ 
+    const FH = new Node();
     const ID = deepCopy(right[1]);
     const FP = deepCopy(right[3]);
-    const SB = deepCopy(right[5]);
+    // const SB = deepCopy(right[5]);
 
-    if(SB.returnType !== 'void') {
-        const errorInfo = 'Return type differs from function declaration';
-        throw new Error(errorInfo);
-    }
+    // if(SB.returnType !== 'void') {
+    //     const errorInfo = 'Return type differs from function declaration';
+    //     throw new Error(errorInfo);
+    // }
     if(VST.hasVar(ID.val)) {
         const errorInfo = 'A var that has the same name declared';
         throw new Error(errorInfo);
@@ -489,29 +523,21 @@ const f13 = function(right, VST, FST) {
         throw new Error(errorInfo);
     }
 
-    FD.IR.push(['func', '', '', ID.val]);
+    FH.IR.push(['func', '', '', ID.val]);
     for(let i = 0; i < FP.paramName.length; i++) {
         // const nowType = (FP.paramType[i] === 'int')? 'i32': 'float';
         // FD.IR += `%${FP.paramName[i]} = alloca ${nowType}\n`;
         // FD.IR += `store ${nowType} %${i}, ${nowType}* %${FP.paramName[i]}\n`;
-        FD.IR.push(['fparam', FP.paramName[i], '', '']);
-    }
-    FD.IR = FD.IR.concat(SB.IR);
-    if(FD.IR.slice(-1)[0][0] !== 'ret') {
-        FD.IR.push(['ret', '', '', '']);
+        FH.IR.push(['fparam', FP.paramName[i], '', '']);
     }
 
     FST.append(ID.val, 'void', FP.paramType, FP.paramName);
 
-    for(let i = 0; i < FP.paramName.length; i++) {
-        VST.remove();
-    } // 将之前压入符号表的形式参数弹出
-
-    return FD;
+    return FH;
 };
 
-const f14 = function(right, VST, FST) {
-    // <FormalParams> -> <ParamList> $ 14
+const f15 = function(right, VST, FST) {
+    // <FormalParams> -> <ParamList> $ 
     const FP = new Node();
     const P = deepCopy(right[0]);
 
@@ -526,20 +552,20 @@ const f14 = function(right, VST, FST) {
     return FP;
 };
 
-const f15 = function(right, VST, FST) {
-    // <FormalParams> -> void $ 15
-    const FP = new Node();
-    return FP;
-};
-
 const f16 = function(right, VST, FST) {
-    // <FormalParams> -> ε $ 16
+    // <FormalParams> -> void $ 
     const FP = new Node();
     return FP;
 };
 
 const f17 = function(right, VST, FST) {
-    // <ParamList> -> <Param> $ 17
+    // <FormalParams> -> ε $ 
+    const FP = new Node();
+    return FP;
+};
+
+const f18 = function(right, VST, FST) {
+    // <ParamList> -> <Param> $ 
     const PL = new Node();
     const P = deepCopy(right[0]);
 
@@ -550,8 +576,8 @@ const f17 = function(right, VST, FST) {
     return PL;
 };
 
-const f18 = function(right, VST, FST) {
-    // <ParamList> -> <Param> , <ParamList> $ 18
+const f19 = function(right, VST, FST) {
+    // <ParamList> -> <Param> , <ParamList> $ 
     const PL1 = new Node();
     const P = deepCopy(right[0]);
     const PL2 = deepCopy(right[2]);
@@ -565,8 +591,8 @@ const f18 = function(right, VST, FST) {
     return PL1;
 };
 
-const f19 = function(right, VST, FST) {
-    // <Param> -> int ID $ 19
+const f20 = function(right, VST, FST) {
+    // <Param> -> int ID $ 
     const P = new Node();
     const ID = deepCopy(right[1]);
 
@@ -582,8 +608,8 @@ const f19 = function(right, VST, FST) {
     return P;
 };
 
-const f20 = function(right, VST, FST) {
-    // <Param> -> float ID $ 20
+const f21 = function(right, VST, FST) {
+    // <Param> -> float ID $ 
     throw new Error('Not support float');
     // const P = new Node();
     // const ID = deepCopy(right[1]);
@@ -600,8 +626,8 @@ const f20 = function(right, VST, FST) {
     // return P;
 };
 
-const f21 = function(right, VST, FST) {
-    // <StmtBlock> -> { <Stmts> } $ 21
+const f22 = function(right, VST, FST) {
+    // <StmtBlock> -> { <Stmts> } $ 
     const SB = new Node();
     const S = deepCopy(right[1]);
 
@@ -632,8 +658,8 @@ const f21 = function(right, VST, FST) {
     return SB;
 };
 
-const f22 = function(right, VST, FST) {
-    // <Stmts> -> <Stmt> <Stmts> $ 22
+const f23 = function(right, VST, FST) {
+    // <Stmts> -> <Stmt> <Stmts> $ 
     const Ss1 = new Node();
     const S = deepCopy(right[0]);
     const Ss2 = deepCopy(right[1]);
@@ -688,8 +714,8 @@ const f22 = function(right, VST, FST) {
     return Ss1;
 };
 
-const f23 = function(right, VST, FST) {
-    // <Stmts> -> <Stmt> $ 23
+const f24 = function(right, VST, FST) {
+    // <Stmts> -> <Stmt> $ 
     const Ss = new Node();
     const S = deepCopy(right[0]);
 
@@ -700,8 +726,8 @@ const f23 = function(right, VST, FST) {
     return Ss;
 };
 
-const f24 = function(right, VST, FST) {
-    // <Stmt> -> <VarDecl> $ 24
+const f25 = function(right, VST, FST) {
+    // <Stmt> -> <VarDecl> $ 
     const S = new Node();
     const VD = deepCopy(right[0]);
 
@@ -712,8 +738,8 @@ const f24 = function(right, VST, FST) {
     return S;
 };
 
-const f25 = function(right, VST, FST) {
-    // <Stmt> -> <IfStmt> $ 25
+const f26 = function(right, VST, FST) {
+    // <Stmt> -> <IfStmt> $ 
     const S = new Node();
     const IS = deepCopy(right[0]);
 
@@ -723,8 +749,8 @@ const f25 = function(right, VST, FST) {
     return S;
 };
 
-const f26 = function(right, VST, FST) {
-    // <Stmt> -> <WhileStmt> $ 26
+const f27 = function(right, VST, FST) {
+    // <Stmt> -> <WhileStmt> $ 
     const S = new Node();
     const WS = deepCopy(right[0]);
 
@@ -734,8 +760,8 @@ const f26 = function(right, VST, FST) {
     return S;
 };
 
-const f27 = function(right, VST, FST) {
-    // <Stmt> -> <ReturnStmt> $ 27
+const f28 = function(right, VST, FST) {
+    // <Stmt> -> <ReturnStmt> $ 
     const S = new Node();
     const RS = deepCopy(right[0]);
 
@@ -745,8 +771,8 @@ const f27 = function(right, VST, FST) {
     return S;
 };
 
-const f28 = function(right, VST, FST) {
-    // <Stmt> -> <AssignStmt> $ 28
+const f29 = function(right, VST, FST) {
+    // <Stmt> -> <AssignStmt> $ 
     const S = new Node();
     const AS = deepCopy(right[0]);
 
@@ -756,8 +782,8 @@ const f28 = function(right, VST, FST) {
     return S;
 };
 
-const f29 = function(right, VST, FST) {
-    // <Stmt> -> ID <FuncCall> ; $ 29
+const f30 = function(right, VST, FST) {
+    // <Stmt> -> ID <FuncCall> ; $ 
     const S = new Node();
 	const ID = deepCopy(right[0]);
 	const FC = deepCopy(right[1]);
@@ -772,10 +798,10 @@ const f29 = function(right, VST, FST) {
     }
     // 至此通过函数参数类型检查
     const funcReturnType = FST.getReturnType(ID.val);
-    if(funcReturnType !== 'void') {
-        const errorInfo = `Call a function which returns ${funcReturnType}`;
-        throw new Error(errorInfo);
-    }
+    // if(funcReturnType !== 'void') {
+    //     const errorInfo = `Call a function which returns ${funcReturnType}`;
+    //     throw new Error(errorInfo);
+    // }
     // 通过函数返回值类型检查
 
     S.IR = FC.IR;
@@ -790,8 +816,8 @@ const f29 = function(right, VST, FST) {
     return S;
 };
 
-const f30 = function(right, VST, FST) {
-    // <AssignStmt> -> ID = <Exprsn> ; $ 30
+const f31 = function(right, VST, FST) {
+    // <AssignStmt> -> ID = <Exprsn> ; $ 
     const A = new Node();
     const ID = deepCopy(right[0]);
     const E = deepCopy(right[2]);
@@ -812,8 +838,8 @@ const f30 = function(right, VST, FST) {
     return A;
 };
 
-const f31 = function(right, VST, FST) {
-    // <ReturnStmt> -> return <Exprsn> ; $ 31
+const f32 = function(right, VST, FST) {
+    // <ReturnStmt> -> return <Exprsn> ; $ 
     const RS = new Node();
     const E = deepCopy(right[1]);
 
@@ -825,8 +851,8 @@ const f31 = function(right, VST, FST) {
     return RS;
 };
 
-const f32 = function(right, VST, FST) {
-    // <ReturnStmt> -> return ; $ 32
+const f33 = function(right, VST, FST) {
+    // <ReturnStmt> -> return ; $ 
     const RS = new Node();
 
     RS.returnType = 'void';
@@ -836,8 +862,8 @@ const f32 = function(right, VST, FST) {
     return RS;
 };
 
-const f33 = function(right, VST, FST) {
-    // <WhileStmt> -> while ( <Exprsn> ) <StmtBlock> $ 33
+const f34 = function(right, VST, FST) {
+    // <WhileStmt> -> while ( <Exprsn> ) <StmtBlock> $ 
     const WS = new Node();
     const E = deepCopy(right[2]);
     const SB = deepCopy(right[4]);
@@ -862,8 +888,8 @@ const f33 = function(right, VST, FST) {
     return WS;
 };
 
-const f34 = function(right, VST, FST) {
-    // <IfStmt> -> if ( <Exprsn> ) <StmtBlock> else <StmtBlock> $ 34
+const f35 = function(right, VST, FST) {
+    // <IfStmt> -> if ( <Exprsn> ) <StmtBlock> else <StmtBlock> $ 
     const IS = new Node();
     const E = deepCopy(right[2]);
     const SB1 = deepCopy(right[4]);
@@ -945,8 +971,8 @@ const f34 = function(right, VST, FST) {
     return IS;
 };
 
-const f35 = function(right, VST, FST) {
-    // <IfStmt> -> if ( <Exprsn> ) <StmtBlock> $ 35
+const f36 = function(right, VST, FST) {
+    // <IfStmt> -> if ( <Exprsn> ) <StmtBlock> $ 
     const IS = new Node();
     const E = deepCopy(right[2]);
     const SB = deepCopy(right[4]);
@@ -969,8 +995,8 @@ const f35 = function(right, VST, FST) {
     return IS;
 };
 
-const f36 = function(right, VST, FST) {
-    // <Exprsn> -> <AddExprsn> $ 36
+const f37 = function(right, VST, FST) {
+    // <Exprsn> -> <AddExprsn> $ 
     const E = new Node();
     const A = deepCopy(right[0]);
 
@@ -981,8 +1007,8 @@ const f36 = function(right, VST, FST) {
     return E;
 };
 
-const f37 = function(right, VST, FST) {
-    // <Exprsn> -> <AddExprsn> < <Exprsn> $ 37
+const f38 = function(right, VST, FST) {
+    // <Exprsn> -> <AddExprsn> < <Exprsn> $ 
     const E1 = new Node();
     const A = deepCopy(right[0]);
     const E2 = deepCopy(right[2]);
@@ -1012,8 +1038,8 @@ const f37 = function(right, VST, FST) {
     return E1;
 };
 
-const f38 = function(right, VST, FST) {
-    // <Exprsn> -> <AddExprsn> <= <Exprsn> $ 38
+const f39 = function(right, VST, FST) {
+    // <Exprsn> -> <AddExprsn> <= <Exprsn> $ 
     const E1 = new Node();
     const A = deepCopy(right[0]);
     const E2 = deepCopy(right[2]);
@@ -1043,8 +1069,8 @@ const f38 = function(right, VST, FST) {
     return E1;
 };
 
-const f39 = function(right, VST, FST) {
-    // <Exprsn> -> <AddExprsn> > <Exprsn> $ 39
+const f40 = function(right, VST, FST) {
+    // <Exprsn> -> <AddExprsn> > <Exprsn> $ 
     const E1 = new Node();
     const A = deepCopy(right[0]);
     const E2 = deepCopy(right[2]);
@@ -1074,8 +1100,8 @@ const f39 = function(right, VST, FST) {
     return E1;
 };
 
-const f40 = function(right, VST, FST) {
-    // <Exprsn> -> <AddExprsn> >= <Exprsn> $ 40
+const f41 = function(right, VST, FST) {
+    // <Exprsn> -> <AddExprsn> >= <Exprsn> $ 
     const E1 = new Node();
     const A = deepCopy(right[0]);
     const E2 = deepCopy(right[2]);
@@ -1105,8 +1131,8 @@ const f40 = function(right, VST, FST) {
     return E1;
 };
 
-const f41 = function(right, VST, FST) {
-    // <Exprsn> -> <AddExprsn> == <Exprsn> $ 41
+const f42 = function(right, VST, FST) {
+    // <Exprsn> -> <AddExprsn> == <Exprsn> $ 
     const E1 = new Node();
     const A = deepCopy(right[0]);
     const E2 = deepCopy(right[2]);
@@ -1136,8 +1162,8 @@ const f41 = function(right, VST, FST) {
     return E1;
 };
 
-const f42 = function(right, VST, FST) {
-    // <Exprsn> -> <AddExprsn> != <Exprsn> $ 42
+const f43 = function(right, VST, FST) {
+    // <Exprsn> -> <AddExprsn> != <Exprsn> $ 
     const E1 = new Node();
     const A = deepCopy(right[0]);
     const E2 = deepCopy(right[2]);
@@ -1167,8 +1193,8 @@ const f42 = function(right, VST, FST) {
     return E1;
 };
 
-const f43 = function(right, VST, FST) {
-    // <AddExprsn> -> <Item> + <AddExprsn> $ 43
+const f44 = function(right, VST, FST) {
+    // <AddExprsn> -> <Item> + <AddExprsn> $ 
     const A1 = new Node();
     const I = deepCopy(right[0]);
     const A2 = deepCopy(right[2]);
@@ -1190,8 +1216,8 @@ const f43 = function(right, VST, FST) {
     return A1;
 };
 
-const f44 = function(right, VST, FST) {
-    // <AddExprsn> -> <Item> - <AddExprsn> $ 44
+const f45 = function(right, VST, FST) {
+    // <AddExprsn> -> <Item> - <AddExprsn> $ 
     const A1 = new Node();
     const I = deepCopy(right[0]);
     const A2 = deepCopy(right[2]);
@@ -1213,8 +1239,8 @@ const f44 = function(right, VST, FST) {
     return A1;
 };
 
-const f45 = function(right, VST, FST) {
-    // <AddExprsn> -> <Item> $ 45
+const f46 = function(right, VST, FST) {
+    // <AddExprsn> -> <Item> $ 
     const A = new Node();
     const I = deepCopy(right[0]);
 
@@ -1225,8 +1251,8 @@ const f45 = function(right, VST, FST) {
     return A;
 };
 
-const f46 = function(right, VST, FST) {
-    // <Item> -> <Factor> * <Item> $ 46
+const f47 = function(right, VST, FST) {
+    // <Item> -> <Factor> * <Item> $ 
     const I1 = new Node();
     const F = deepCopy(right[0]);
     const I2 = deepCopy(right[2]);
@@ -1248,8 +1274,8 @@ const f46 = function(right, VST, FST) {
     return I1;
 };
 
-const f47 = function(right, VST, FST) {
-    // <Item> -> <Factor> / <Item> $ 47
+const f48 = function(right, VST, FST) {
+    // <Item> -> <Factor> / <Item> $ 
     const I1 = new Node();
     const F = deepCopy(right[0]);
     const I2 = deepCopy(right[2]);
@@ -1271,8 +1297,8 @@ const f47 = function(right, VST, FST) {
     return I1;
 };
 
-const f48 = function(right, VST, FST) {
-    // <Item> -> <Factor> $ 48
+const f49 = function(right, VST, FST) {
+    // <Item> -> <Factor> $ 
     const I = new Node();
     const F = deepCopy(right[0]);
 
@@ -1283,8 +1309,8 @@ const f48 = function(right, VST, FST) {
     return I;
 };
 
-const f49 = function(right, VST, FST) {
-    // <Factor> -> inum $ 49
+const f50 = function(right, VST, FST) {
+    // <Factor> -> inum $ 
     const F = new Node();
     const inum = deepCopy(right[0]);
 
@@ -1296,8 +1322,8 @@ const f49 = function(right, VST, FST) {
     return F;
 };
 
-const f50 = function(right, VST, FST) {
-    // <Factor> -> - inum $ 50
+const f51 = function(right, VST, FST) {
+    // <Factor> -> - inum $ 
     const F = new Node();
     const inum = deepCopy(right[1]);
 
@@ -1310,8 +1336,8 @@ const f50 = function(right, VST, FST) {
     return F;
 };
 
-const f51 = function(right, VST, FST) {
-    // <Factor> -> fnum $ 51
+const f52 = function(right, VST, FST) {
+    // <Factor> -> fnum $ 
     throw new Error('Not support float');
     // const F = new Node();
     // const fnum = deepCopy(right[0]);
@@ -1322,8 +1348,8 @@ const f51 = function(right, VST, FST) {
     // return F;
 };
 
-const f52 = function(right, VST, FST) {
-    // <Factor> -> - fnum $ 52
+const f53 = function(right, VST, FST) {
+    // <Factor> -> - fnum $ 
     throw new Error('Not support float');
     // const F = new Node();
     // const fnum = deepCopy(right[1]);
@@ -1334,8 +1360,8 @@ const f52 = function(right, VST, FST) {
     // return F;
 };
 
-const f53 = function(right, VST, FST) {
-    // <Factor> -> ( <Exprsn> ) $ 53
+const f54 = function(right, VST, FST) {
+    // <Factor> -> ( <Exprsn> ) $ 
     const F = new Node();
     const E = deepCopy(right[1]);
 
@@ -1346,8 +1372,8 @@ const f53 = function(right, VST, FST) {
     return F;
 };
 
-const f54 = function(right, VST, FST) {
-	// <Factor> -> ID $ 54
+const f55 = function(right, VST, FST) {
+	// <Factor> -> ID $ 
     const F = new Node();
     const ID = deepCopy(right[0]);
     
@@ -1364,8 +1390,8 @@ const f54 = function(right, VST, FST) {
     return F;
 };
 
-const f55 = function(right, VST, FST) {
-	// <Factor> -> ID <FuncCall> $ 55
+const f56 = function(right, VST, FST) {
+	// <Factor> -> ID <FuncCall> $ 
 	const F = new Node();
 	const ID = deepCopy(right[0]);
 	const FC = deepCopy(right[1]);
@@ -1402,8 +1428,8 @@ const f55 = function(right, VST, FST) {
     return F;
 };
 
-const f56 = function(right, VST, FST) {
-	// <FuncCall> -> ( <ActualArgs> ) $ 56
+const f57 = function(right, VST, FST) {
+	// <FuncCall> -> ( <ActualArgs> ) $ 
 	const F = new Node();
     const Ac = deepCopy(right[1]);
 
@@ -1414,8 +1440,8 @@ const f56 = function(right, VST, FST) {
 	return F;
 };
 
-const f57 = function(right, VST, FST) {
-	// <ActualArgs> -> <ArgList> $ 57
+const f58 = function(right, VST, FST) {
+	// <ActualArgs> -> <ArgList> $ 
 	const Ac = new Node();
 	const Arg = deepCopy(right[0]);
 
@@ -1426,8 +1452,8 @@ const f57 = function(right, VST, FST) {
 	return Ac;
 };
 
-const f58 = function(right, VST, FST) {
-	// <ActualArgs> -> void $ 58
+const f59 = function(right, VST, FST) {
+	// <ActualArgs> -> void $ 
 	const A = new Node();
 	
 	A.args = new Array();
@@ -1436,8 +1462,8 @@ const f58 = function(right, VST, FST) {
 	return A;
 };
 
-const f59 = function(right, VST, FST) {
-	// <ActualArgs> -> ε $ 59
+const f60 = function(right, VST, FST) {
+	// <ActualArgs> -> ε $ 
 	const A = new Node();
 
 	A.args = new Array();
@@ -1446,8 +1472,8 @@ const f59 = function(right, VST, FST) {
 	return A;
 };
 
-const f60 = function(right, VST, FST) {
-	// <ArgList> -> <Exprsn> , <ArgList> $ 60
+const f61 = function(right, VST, FST) {
+	// <ArgList> -> <Exprsn> , <ArgList> $ 
 	const A1 = new Node();
 	const E = deepCopy(right[0]);
 	const A2 = deepCopy(right[2]);
@@ -1461,8 +1487,8 @@ const f60 = function(right, VST, FST) {
 	return A1;
 };
 
-const f61 = function(right, VST, FST) {
-    // <ArgList> -> <Exprsn> $ 61
+const f62 = function(right, VST, FST) {
+    // <ArgList> -> <Exprsn> $ 
 	const A = new Node();
 	const E = deepCopy(right[0]);
 
@@ -1557,11 +1583,11 @@ class IR_Generator {
 }
 
 /**
- * 初始化函数，将 f1 - f58 加入 this.allFuncs 中
+ * 初始化函数，将 f1 - f59 加入 this.allFuncs 中
  * @private
  */
 IR_Generator.prototype._initialize = function() {
-    for(let i = 1; i <= 61; i++) {
+    for(let i = 1; i <= 62; i++) {
         const code = `this._allFuncs[${i}] = f${i};`;
         eval(code); // 执行上述代码
     }
