@@ -416,7 +416,24 @@ const f11 = function(right, VST, FST) {
     FD.IR = FH.IR;
     FD.IR = FD.IR.concat(SB.IR);
     if(FD.IR.slice(-1)[0][0] !== 'ret') {
-        FD.IR.push(['ret', '', '', '']);
+        if(funcReturnType === 'void') {
+            FD.IR.push(['ret', '', '', '']);
+        } else if(funcReturnType === 'int') {
+            const newTemp = TA.getNewTemp();
+            const continueList = new Set(['func', 'fparam', 'flocal']);
+            let count = 0;
+            for(count = 0; count < FD.IR.length; count++) {
+                if(!continueList.has(FD.IR[count][0])) {
+                    break;
+                }
+            }
+            FD.IR.splice(count, 0, ['flocal', newTemp, '', '']);
+
+            FD.IR.push(['assign', '0', '', newTemp]);
+            FD.IR.push(['ret', newTemp, '', '']);
+        } else {
+            throw new Error('please check f11');
+        }
     }
 
     for(let i = 0; i < FST.getParamNum(funcName); i++) {
@@ -643,7 +660,7 @@ const f22 = function(right, VST, FST) {
     for(let i = 0; i < S.IR.length; i++) {
         const eachIR = S.IR[i];
         if(insSet.has(eachIR[0])) {
-            if(eachIR[3] !== '') {
+            if(eachIR[3] !== '' && !VST.hasVar(eachIR[3])) {
                 localVarSet.add(eachIR[3]);
             }
         }
@@ -693,7 +710,7 @@ const f23 = function(right, VST, FST) {
             set2.add(each[1]);
         }
     }
-
+   
     const intersect = new Set([...set1].filter(x => set2.has(x)));
     for(let each of intersect) {
         const newNo =  VNA.getNewNo();
@@ -897,9 +914,9 @@ const f35 = function(right, VST, FST) {
 
     if(SB1.returnType !== SB2.returnType) {
         if(SB1.returnType === 'void') {
-            IS.returnType = SB2.returnType;
+            IS.returnType = 'void'; //SB2.returnType;
         } else if(SB2.returnType === 'void') {
-            IS.returnType = SB1.returnType;
+            IS.returnType = 'void'; //SB1.returnType;
         } else {
             const errorInfo = 'The values returnd have different types';
             throw new Error(errorInfo);
@@ -1745,6 +1762,8 @@ IR_Generator.prototype._split = function() {
     const funcs = new Array();
     let func = new Array();
     let isGlobal = true;
+
+    // this._IR_Code.forEach(x => console.log(x));
 
     for(let i = length-1; i >= 0; i--) {
         const eachIR = this._IR_Code[i];
