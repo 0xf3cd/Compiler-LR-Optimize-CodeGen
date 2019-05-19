@@ -1,0 +1,88 @@
+void printNum(int input) {
+    if(input < 0) {
+        print(45);
+        printNum(0 - input);
+        return;
+    }
+
+    if(input <= 9) {
+        print(input + 48);
+        return;
+    }
+
+    int x = input / 10;
+    int y = input - 10 * x;
+
+    if(x > 0) {
+        printNum(x);
+    } 
+    if(y <= 9) {
+        print(y + 48);
+    }
+}
+
+int readNum() {
+    int neg = 0;
+    int sum = 0;
+    int negsum = 0;
+    int c = read();
+
+    // if(c == 45) {
+    //     neg = 1;
+    //     c = read();
+    // }
+
+    while(c != 10) {
+        if(c == 45) {
+            neg = 1;
+            c = read();
+        }
+
+        sum = 10 * sum;
+        sum = sum + (c - 48);
+
+        negsum = 10 * negsum;
+        negsum = negsum - (c - 48);
+        c = read();
+    }
+
+    if(neg == 0) {
+        return sum;
+    } else {
+        return negsum;
+    }
+}
+
+int mul(int x) {
+    if(x <= 1) {
+        return x;
+    } else {
+        return x * mul(x-1);
+    }
+}
+
+int main() {
+    print(97);
+    print(98);
+    print(99);
+    print(10);
+
+    // int temp = -139;
+    // temp = temp * 8;
+    // if(-1 < 8) {
+    //     print(10);
+    // }
+    // printNum(temp);
+    // print(10);
+    int x = readNum();
+    int y = readNum();
+    printNum(x + y);
+    print(10);
+
+    int z = readNum();
+    printNum(mul(z));
+    print(10);
+    
+    return 0;
+}
+#

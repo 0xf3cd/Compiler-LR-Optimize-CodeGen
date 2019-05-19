@@ -205,7 +205,7 @@ CodeGen.prototype._translateOneIR = function(IR) {
         } else {
             nasm.push(`\tmov\t\t${v4}, rax`);   // 写入目标变量
         }
-    } else if(p1 === 'jb') {
+    } else if(p1 === 'jl') {
         if(f2) {
             nasm.push(`\tmov\t\trbx, ${v2}`);   // rbx 变量地址
             nasm.push(`\tmov\t\trcx, [rbx]`);   // rcx 变量的值
@@ -220,8 +220,8 @@ CodeGen.prototype._translateOneIR = function(IR) {
         }
 
         nasm.push(`\tcmp\t\trcx, rdx`);     // 比较 rcx 和 rdx
-        nasm.push(`\tjb\t\t${p4}`);         // rbx 目标变量地址
-    } else if(p1 === 'jbe') {
+        nasm.push(`\tjl\t\t${p4}`);         // rbx 目标变量地址
+    } else if(p1 === 'jle') {
         if(f2) {
             nasm.push(`\tmov\t\trbx, ${v2}`);   // rbx 变量地址
             nasm.push(`\tmov\t\trcx, [rbx]`);   // rcx 变量的值
@@ -236,7 +236,7 @@ CodeGen.prototype._translateOneIR = function(IR) {
         }
 
         nasm.push(`\tcmp\t\trcx, rdx`);     // 比较 rcx 和 rdx
-        nasm.push(`\tjbe\t\t${p4}`);        // rbx 目标变量地址
+        nasm.push(`\tjle\t\t${p4}`);        // rbx 目标变量地址
     } else if(p1 === 'jg') {
         if(f2) {
             nasm.push(`\tmov\t\trbx, ${v2}`);   // rbx 变量地址

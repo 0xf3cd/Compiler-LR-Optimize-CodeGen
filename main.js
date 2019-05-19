@@ -6,10 +6,10 @@ const child_process = require('child_process');
 const spawnSync = child_process.spawnSync;
 const execSync = child_process.execSync;
 
-const srcFileDir = './Source/Example.cmm';
-const nasmFileDir = './Result/Example.asm';
+const srcFileDir = './Source/Example2.cmm';
+const nasmFileDir = './Result/Example2.asm';
 const oFileDir = nasmFileDir.substring(0, nasmFileDir.length-4) + '.o';
-const exeFileDir = './Result/Example';
+const exeFileDir = './Result/Example2';
 
 let P = new Parser();
 let I = new IR_Gen();
