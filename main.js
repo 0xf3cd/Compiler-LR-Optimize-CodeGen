@@ -1,5 +1,6 @@
 const Parser = require('./Parser.js');
 const IR_Gen = require('./IR_Generator.js');
+const Optimizer = require('./Optimizer.js');
 const CodeGen = require('./CodeGen.js');
 const fs = require('fs');
 const child_process = require('child_process');
@@ -13,6 +14,7 @@ const exeFileDir = './Result/Example';
 
 let P = new Parser();
 let I = new IR_Gen();
+let O = new Optimizer();
 let CG = new CodeGen();
 
 P.setGrammar('./Grammar/Grammar.txt');
@@ -26,12 +28,7 @@ I.readProdNoFile();
 
 while(true) {
     let record = P.getNext();
-
     I.analyze(record);
-    // console.log(record.parseResult);
-    // console.log(record.stateStack);
-    // console.log(record.symbolStack);
-    // console.log();
 
     if(record.parseResult === 'error' || record.parseResult === 'acc') {
         break;
@@ -49,7 +46,9 @@ while(true) {
 const IR = I.getIR();
 // console.log(IR.funcs);
 
-CG.initialize(IR);
+const optimizedIR = O.optimize(IR);
+
+CG.initialize(optimizedIR);
 CG.translate();
 const nasm = CG.showNasm(); // 汇编代码
 // console.log(nasm);
@@ -57,3 +56,18 @@ const nasm = CG.showNasm(); // 汇编代码
 fs.writeFileSync(nasmFileDir, nasm);
 spawnSync('nasm', ['-f macho64', nasmFileDir], {});
 execSync(`ld -macosx_version_min 10.7.0 -lSystem -o ${exeFileDir} ${oFileDir}`);
+
+// for(let each of IR.funcs) {
+//     if(each[0][3] === '_main') {
+//         console.log(each);
+//     }
+// }
+
+// for(let each of optimizedIR.funcs) {
+//     if(each[0][3] === '_main') {
+//         console.log(each);
+//     }
+// }
+
+// console.log(IR.global);
+// console.log(optimizedIR.global);

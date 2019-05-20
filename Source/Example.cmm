@@ -1,3 +1,9 @@
+// int aa = 1;
+// int bb = 13;
+// int cc = 13 + 1;
+// int dd = 24 * 8;
+// int ee = 24 * 13 + 8;
+
 void printNum(int input) {
     if(input < 0) {
         print(45);
@@ -67,59 +73,14 @@ int mul(int x) {
     }
 }
 
-int test() {
-    int x = 10;
-
-    int y = 14;
-    if(x < 100) {
-        y = 0;
-        return y;
-
-    } else {
-        y = y + 1;
-        return y;
-    }
-
-
-    if(1 < 4) {
-        int z = 13;
-        x = 13;
-    } 
-    if(4 > 1) {
-        int z = 15;
-        x = 14;
-    } else {
-
-        int z = 15;
-    }
-    return y;
-}
-
 int main() {
-    // print(97);
-    // print(98);
-    // print(99);
-    int i = 0;
-    while(i < 26) {
-        print(97 + i);
-        i = i + 1;
-    }
-    print(10);
-
-    // int temp = -139;
-    // temp = temp * 8;
-    // if(-1 < 8) {
-    //     print(10);
-    // }
-    // printNum(temp);
-    // print(10);
     int x = readNum();
     int y = readNum();
     printNum(x + y);
     print(10);
 
     int z = readNum();
-    printNum(mul(z));
+    printNum(mul(z)); // 计算阶乘
     print(10);
     
     return 0;

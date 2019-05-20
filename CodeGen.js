@@ -489,6 +489,10 @@ CodeGen.prototype._translateFunc = function() {
         }
 
         this._text.push(funcNasm);
+
+        // if(IR[0][3] === '_main') {
+        //     console.log(IR);
+        // }
     }
 };
 
@@ -578,6 +582,8 @@ CodeGen.prototype.translate = function() {
 
     // console.log(this._text);
     // console.log(this._funcs);
+    // console.log(this._data);
+    // console.log(this._bss);
 };
 
 CodeGen.prototype.showNasm = function() {

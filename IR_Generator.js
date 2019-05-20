@@ -1046,10 +1046,10 @@ const f38 = function(right, VST, FST) {
     E1.IR = E1.IR.concat(A.IR);
     E1.IR = E1.IR.concat(E2.IR);
     E1.IR.push(['jl', A.val, E2.val, newLabel1]);
-    E1.IR.push(['assign', 0, '', newTemp1]);
+    E1.IR.push(['assign', '0', '', newTemp1]);
     E1.IR.push(['goto', '', '', newLabel2]);
     E1.IR.push(['label', '', '', newLabel1]);
-    E1.IR.push(['assign', 1, '', newTemp1]);
+    E1.IR.push(['assign', '1', '', newTemp1]);
     E1.IR.push(['label', '', '', newLabel2]);
 
     return E1;
@@ -1077,10 +1077,10 @@ const f39 = function(right, VST, FST) {
     E1.IR = E1.IR.concat(A.IR);
     E1.IR = E1.IR.concat(E2.IR);
     E1.IR.push(['jle', A.val, E2.val, newLabel1]);
-    E1.IR.push(['assign', 0, '', newTemp1]);
+    E1.IR.push(['assign', '0', '', newTemp1]);
     E1.IR.push(['goto', '', '', newLabel2]);
     E1.IR.push(['label', '', '', newLabel1]);
-    E1.IR.push(['assign', 1, '', newTemp1]);
+    E1.IR.push(['assign', '1', '', newTemp1]);
     E1.IR.push(['label', '', '', newLabel2]);
 
     return E1;
@@ -1108,10 +1108,10 @@ const f40 = function(right, VST, FST) {
     E1.IR = E1.IR.concat(A.IR);
     E1.IR = E1.IR.concat(E2.IR);
     E1.IR.push(['jg', A.val, E2.val, newLabel1]);
-    E1.IR.push(['assign', 0, '', newTemp1]);
+    E1.IR.push(['assign', '0', '', newTemp1]);
     E1.IR.push(['goto', '', '', newLabel2]);
     E1.IR.push(['label', '', '', newLabel1]);
-    E1.IR.push(['assign', 1, '', newTemp1]);
+    E1.IR.push(['assign', '1', '', newTemp1]);
     E1.IR.push(['label', '', '', newLabel2]);
 
     return E1;
@@ -1139,10 +1139,10 @@ const f41 = function(right, VST, FST) {
     E1.IR = E1.IR.concat(A.IR);
     E1.IR = E1.IR.concat(E2.IR);
     E1.IR.push(['jge', A.val, E2.val, newLabel1]);
-    E1.IR.push(['assign', 0, '', newTemp1]);
+    E1.IR.push(['assign', '0', '', newTemp1]);
     E1.IR.push(['goto', '', '', newLabel2]);
     E1.IR.push(['label', '', '', newLabel1]);
-    E1.IR.push(['assign', 1, '', newTemp1]);
+    E1.IR.push(['assign', '1', '', newTemp1]);
     E1.IR.push(['label', '', '', newLabel2]);
 
     return E1;
@@ -1170,10 +1170,10 @@ const f42 = function(right, VST, FST) {
     E1.IR = E1.IR.concat(A.IR);
     E1.IR = E1.IR.concat(E2.IR);
     E1.IR.push(['je', A.val, E2.val, newLabel1]);
-    E1.IR.push(['assign', 0, '', newTemp1]);
+    E1.IR.push(['assign', '0', '', newTemp1]);
     E1.IR.push(['goto', '', '', newLabel2]);
     E1.IR.push(['label', '', '', newLabel1]);
-    E1.IR.push(['assign', 1, '', newTemp1]);
+    E1.IR.push(['assign', '1', '', newTemp1]);
     E1.IR.push(['label', '', '', newLabel2]);
 
     return E1;
@@ -1201,10 +1201,10 @@ const f43 = function(right, VST, FST) {
     E1.IR = E1.IR.concat(A.IR);
     E1.IR = E1.IR.concat(E2.IR);
     E1.IR.push(['jne', A.val, E2.val, newLabel1]);
-    E1.IR.push(['assign', 0, '', newTemp1]);
+    E1.IR.push(['assign', '0', '', newTemp1]);
     E1.IR.push(['goto', '', '', newLabel2]);
     E1.IR.push(['label', '', '', newLabel1]);
-    E1.IR.push(['assign', 1, '', newTemp1]);
+    E1.IR.push(['assign', '1', '', newTemp1]);
     E1.IR.push(['label', '', '', newLabel2]);
 
     return E1;
