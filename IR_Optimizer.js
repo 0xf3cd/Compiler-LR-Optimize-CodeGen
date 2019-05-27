@@ -5,9 +5,12 @@ const isGlobal = function(varName) {
 
 /**
  * 代码优化器类
+ * 进行常量折叠、常量传播、复写传播、部分死代码消除等优化
+ * 也进行一部分的窥孔优化，删去一部分无用的标签
+ * 进行简单的优化，不将中间代码转换为数据流图
  * @class
  */
-class Optimizer {
+class IR_Optimizer {
     constructor() {
         /**
          * 记录中间代码中的全局变量部分
@@ -22,8 +25,9 @@ class Optimizer {
  * 具体执行全局中间代码优化的函数
  * @private
  * @param {Array} globalIR
+ * @return 优化后的全局中间代码
  */
-Optimizer.prototype._optimizeGlobal = function(globalIR) {
+IR_Optimizer.prototype._optimizeGlobal = function(globalIR) {
     const continueSet = new Set(['bss', 'data']);
     const bss = new Set();
     const data = new Set();
@@ -139,8 +143,9 @@ Optimizer.prototype._optimizeGlobal = function(globalIR) {
  * 具体优化函数中间代码的函数
  * @private
  * @param {Array} funcIR
+ * @return 优化后的全局中间代码，以及相关的优化信息
  */
-Optimizer.prototype._optimizeFunc = function(funcIR) {
+IR_Optimizer.prototype._optimizeFunc = function(funcIR) {
     const continueSet = new Set(['func', 'fparam', 'flocal']);
     const fparam = new Set();
     const flocal = new Set();
@@ -259,8 +264,9 @@ Optimizer.prototype._optimizeFunc = function(funcIR) {
  * 将一部分中间代码进行常量折叠
  * @private
  * @param {Array} IR
+ * @return 优化后的中间代码，及进行常量折叠优化的情况
  */
-Optimizer.prototype._constantFolding = function(IR) {
+IR_Optimizer.prototype._constantFolding = function(IR) {
     let count = 0;
     const newIR = new Array();
     for(let each of IR) {
@@ -314,11 +320,14 @@ Optimizer.prototype._constantFolding = function(IR) {
  * 将全局中间代码进行优化
  * @public
  * @param {Array} globalIR
+ * @return 优化后的全局中间代码，及优化过程的相关情况
  */
-Optimizer.prototype.optimizeGlobal = function(globalIR) {
+IR_Optimizer.prototype.optimizeGlobal = function(globalIR) {
     let IR = globalIR;
     let changeNum = 0;
     let replaceMap = new Map();
+
+    let totalCount = 0; // 记录进行优化的次数
 
     if(globalIR.length === 0) {
         return {
@@ -356,12 +365,15 @@ Optimizer.prototype.optimizeGlobal = function(globalIR) {
 
         if(changeNum === 0) {
             break;
+        } else {
+            totalCount += changeNum;
         }
     }
     
     return {
         IR: IR,
-        replaceMap: replaceMap
+        replaceMap: replaceMap,
+        count: totalCount
     };
 };
 
@@ -370,8 +382,9 @@ Optimizer.prototype.optimizeGlobal = function(globalIR) {
  * @public
  * @param {Array} funcIR
  * @param {Array} globalReplaceMap
+ * @return 优化后的函数中间代码
  */
-Optimizer.prototype.optimizeFunc = function(funcIR, globalReplaceMap) {
+IR_Optimizer.prototype.optimizeFunc = function(funcIR, globalReplaceMap) {
     const replacedFuncIR = new Array();
     for(let eachFunc of funcIR) {
         eachFunc = new Array(...eachFunc);
@@ -386,6 +399,8 @@ Optimizer.prototype.optimizeFunc = function(funcIR, globalReplaceMap) {
 
         replacedFuncIR.push(eachFunc);
     }
+
+    let totalCount = 0; // 记录进行优化的次数
 
     const newFuncIR = new Array();
     for(let eachFunc of replacedFuncIR) {
@@ -402,37 +417,224 @@ Optimizer.prototype.optimizeFunc = function(funcIR, globalReplaceMap) {
 
             if(changeNum === 0) {
                 break;
+            } else {
+                totalCount += changeNum;
             }
         }
         
         newFuncIR.push(optimizedFunc);
     }
 
-    return newFuncIR;
+    // return newFuncIR;
+    return {
+        IR: newFuncIR,
+        count: totalCount
+    };
+};
+
+/**
+ * 消除一部分死代码
+ * 消除 if(18 > 0) {x} 这种情况下产生的死代码
+ * @private
+ * @param {Array} IR
+ * @return 消除部分死代码后的中间代码，及优化情况
+ */
+IR_Optimizer.prototype._eliminateDeadCode = function(IR) {
+    const cmpIR = new Set(['jg', 'jge', 'jl', 'jle', 'je', 'jne']);
+    const newIR = new Array();
+    let count = 0;
+    
+    IR.forEach(ir => {
+        if(!cmpIR.has(ir[0])) {
+            newIR.push(ir);
+            return;
+        }
+
+        const v1 = parseInt(ir[1]);
+        const v2 = parseInt(ir[2]);
+        if(isNaN(v1) || isNaN(v2)) {
+            newIR.push(ir);
+            return;
+        }
+
+        // 至此，这条比较指令两个比较数都为常数
+        count++;
+        let cmpResult;
+        switch(ir[0]) {
+            case('jg'): {
+                cmpResult = v1 > v2? true: false;
+                break;
+            }
+            case('jge'): {
+                cmpResult = v1 >= v2? true: false;
+                break;
+            }
+            case('jl'): {
+                cmpResult = v1 < v2? true: false;
+                break;
+            }
+            case('jle'): {
+                cmpResult = v1 <= v2? true: false;
+                break;
+            }
+            case('je'): {
+                cmpResult = v1 === v2? true: false;
+                break;
+            }
+            case('jne'): {
+                cmpResult = v1 !== v2? true: false;
+                break;
+            }
+        }
+
+        // console.log(cmpResult);
+        if(cmpResult) {
+            newIR.push(['goto', '', '', ir[3]]);
+        }
+    });
+
+    return {
+        IR: newIR,
+        eliminateNum: count
+    };
+};
+
+/**
+ * 进行一部分窥孔优化
+ * 删除连续出现的标签
+ * @private
+ * @param {Array} IR
+ * @return 优化后的中间代码，及优化情况
+ */
+IR_Optimizer.prototype._peepholeOptimize = function(IR) {
+    const newIR = new Array();
+    const replaceMap = new Map(); // 记录标签替换的情况
+    const redundantLine = new Set(); // 记录需要删去的标签所在行数
+    
+    // 窥孔窗口大小为 2
+    for(let i = 0; i < IR.length-1; i++) {
+        if(IR[i][0] === 'label' && IR[i+1][0] === 'label') {
+            const l1 = IR[i][3];
+            const l2 = IR[i+1][3];
+
+            replaceMap.set(l2, l1);
+            redundantLine.add(i+1);
+        }
+    }
+
+    for(let i = 0; i < IR.length; i++) {
+        if(redundantLine.has(i)) {
+            continue;
+        }
+
+        newIR.push(IR[i]);
+    }
+
+    while(true) {
+        let count = 0;
+
+        for(let [k, v] of replaceMap) {
+            if(replaceMap.has(v)) {
+                replaceMap.set(k, replaceMap.get(v));
+                count++;
+            }
+        }
+
+        if(count === 0) {
+            break;
+        }
+    }
+
+    for(let i = 0; i < newIR.length; i++) {
+        for(let j = 0; j < 4; j++) {
+            if(replaceMap.has(newIR[i][j])) {
+                newIR[i][j] = replaceMap.get(newIR[i][j]);
+            }
+        }
+    }
+
+    // if(replaceMap.size !== 0) {
+    //     console.log(replaceMap);
+    // }
+
+    return {
+        IR: newIR,
+        count: redundantLine.size
+    };
 };
 
 /**
  * 将中间代码进行优化
  * @public
  * @param {Array} funcIR
+ * @return 进行优化后的代码，以及优化的情况
  */
-Optimizer.prototype.optimize = function(IR) {
-    const optimizedGlobal = this.optimizeGlobal(IR.global);
+IR_Optimizer.prototype.optimize = function(IR) {
+    let optimizedGlobal = IR.global;
+    let globalReplaceMap;
+    let optimizedFunc = IR.funcs;
 
-    for(let eachIR of optimizedGlobal.IR) {
+    let totalCount = 0; // 记录进行优化的次数
+
+    while(true) {
+        const optimizedGlobalRes = this.optimizeGlobal(optimizedGlobal);
+        globalReplaceMap = optimizedGlobalRes.replaceMap;
+
+        totalCount += optimizedGlobalRes.count;
+
+        const optimizedFuncRes = this.optimizeFunc(optimizedFunc, globalReplaceMap);
+        optimizedFunc = optimizedFuncRes.IR;
+        totalCount += optimizedFuncRes.count;
+
+        let count = 0;
+        let result;
+
+        result = this._eliminateDeadCode(optimizedGlobalRes.IR);
+        optimizedGlobal = result.IR;
+        count += result.eliminateNum;
+
+        result = this._peepholeOptimize(optimizedGlobal);
+        optimizedGlobal = result.IR;
+        count += result.count;
+
+        const newOptimizedFunc = new Array();
+        for(let each of optimizedFunc) {
+            result = this._eliminateDeadCode(each);
+            count += result.eliminateNum;
+
+            result = this._peepholeOptimize(result.IR);
+            newOptimizedFunc.push(result.IR);
+            count += result.count;
+        }
+
+        // for(let each of newOptimizedFunc) {
+        //     if(each[0][3] === '_main') {
+        //         console.log(each);
+        //     }
+        // }
+
+        optimizedFunc = newOptimizedFunc;
+
+        if(count === 0) {
+            break;
+        } else {
+            // optimizedGlobal = optimizedGlobal.IR;
+            totalCount += count;
+        }
+    }
+
+    for(let eachIR of optimizedGlobal) {
         if(eachIR[0] === 'data' || eachIR[0] === 'bss') {
             globalVars.add(eachIR[1]);
         }
     }
-
-    const globalReplaceMap = optimizedGlobal.replaceMap;
-    const optimizedFunc = this.optimizeFunc(IR.funcs, globalReplaceMap);
-
+    
     return {
-        global: optimizedGlobal.IR,
+        global: optimizedGlobal,
         funcs: optimizedFunc,
-        funcVarNum: IR.funcVarNum
+        funcVarNum: IR.funcVarNum,
+        count: totalCount
     };
 };
 
-module.exports = Optimizer;
+module.exports = IR_Optimizer;

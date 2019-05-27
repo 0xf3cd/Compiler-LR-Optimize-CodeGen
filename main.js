@@ -1,6 +1,7 @@
 const Parser = require('./Parser.js');
 const IR_Gen = require('./IR_Generator.js');
-const Optimizer = require('./Optimizer.js');
+const IR_Optimizer = require('./IR_Optimizer.js');
+const Reg_Allocator = require('./Reg_Allocator.js');
 const CodeGen = require('./CodeGen.js');
 const fs = require('fs');
 const child_process = require('child_process');
@@ -12,10 +13,11 @@ const nasmFileDir = './Result/Example.asm';
 const oFileDir = nasmFileDir.substring(0, nasmFileDir.length-4) + '.o';
 const exeFileDir = './Result/Example';
 
-let P = new Parser();
-let I = new IR_Gen();
-let O = new Optimizer();
-let CG = new CodeGen();
+let P = new Parser(); // 进行语法分析
+let I = new IR_Gen(); // 进行语义分析及中间代码生成
+let IO = new IR_Optimizer(); // 对中间代码进行常量折叠、常量传播、复写传播、部分死代码消除等优化，也进行一部分窥孔优化
+let RA = new Reg_Allocator(); // 分配寄存器
+let CG = new CodeGen(); // 由中间代码生成目标代码
 
 P.setGrammar('./Grammar/Grammar.txt');
 P.setSource(srcFileDir);
@@ -23,8 +25,6 @@ P.initialize();
 
 I.setProdNoFilePath('./Grammar/Production-No.txt');
 I.readProdNoFile();
-
-// console.log(P.isSLR1());
 
 while(true) {
     let record = P.getNext();
@@ -46,7 +46,11 @@ while(true) {
 const IR = I.getIR();
 // console.log(IR.funcs);
 
-const optimizedIR = O.optimize(IR);
+const optimizedIR = IO.optimize(IR);
+// console.log(optimizedIR.global);
+// console.log(optimizedIR.count);
+
+RA.splitIR(optimizedIR.funcs[0]);
 
 CG.initialize(optimizedIR);
 CG.translate();
@@ -66,6 +70,14 @@ execSync(`ld -macosx_version_min 10.7.0 -lSystem -o ${exeFileDir} ${oFileDir}`);
 // for(let each of optimizedIR.funcs) {
 //     if(each[0][3] === '_main') {
 //         console.log(each);
+//     }
+// }
+
+// for(let each of optimizedIR.funcs) {
+//     if(each[0][3] === '_mul2') {
+//         const each_ = each.filter(x => new Set(['fparam', 'flocal']).has(x[0]));
+//         console.log(each);
+//         console.log(each_);
 //     }
 // }
 

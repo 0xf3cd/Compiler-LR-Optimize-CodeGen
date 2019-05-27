@@ -897,7 +897,7 @@ const f34 = function(right, VST, FST) {
 
     WS.IR.push(['label', '', '', newLabel1]);
     WS.IR = WS.IR.concat(E.IR);
-    WS.IR.push(['je', E.val, 0, newLabel2]); // 如果条件为假
+    WS.IR.push(['je', E.val, '0', newLabel2]); // 如果条件为假
     WS.IR = WS.IR.concat(SB.IR);
     WS.IR.push(['goto', '', '', newLabel1]);
     WS.IR.push(['label', '', '', newLabel2]);
@@ -978,7 +978,7 @@ const f35 = function(right, VST, FST) {
     const newLabel2 = LA.getNewLabel();
 
     IS.IR = E.IR;
-    IS.IR.push(['je', E.val, 0, newLabel1]); // 如果为假，跳转到 newLabel1
+    IS.IR.push(['je', E.val, '0', newLabel1]); // 如果为假，跳转到 newLabel1
     IS.IR = IS.IR.concat(SB1.IR);
     IS.IR.push(['goto', '', '', newLabel2]);
     IS.IR.push(['label', '', '', newLabel1]);
@@ -1005,7 +1005,7 @@ const f36 = function(right, VST, FST) {
     const newLabel1 = LA.getNewLabel();
     
     IS.IR = E.IR;
-    IS.IR.push(['je', E.val, 0, newLabel1]); // 如果为假，跳转到 newLabel1
+    IS.IR.push(['je', E.val, '0', newLabel1]); // 如果为假，跳转到 newLabel1
     IS.IR = IS.IR.concat(SB.IR);
     IS.IR.push(['label', '', '', newLabel1]);
 

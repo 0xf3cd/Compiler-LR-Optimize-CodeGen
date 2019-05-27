@@ -63,14 +63,23 @@ int mul(int x) {
     int result;
     if(x <= 1) {
         result = x;
-    return result;
-
+        return result;
     } else {
         int xx = x - 1;
         result = x * mul(xx);
-    return result;
-
+        return result;
     }
+}
+
+int mul2(int x) {
+    int result = x;
+
+    while(x > 1) {
+        result = result * (x - 1);
+        x = x - 1;
+    }
+
+    return result;
 }
 
 int main() {
@@ -79,7 +88,24 @@ int main() {
     printNum(x + y);
     print(10);
 
+    int temp = 1;
+
     int z = readNum();
+    // readNum();
+    if(temp) {
+        print(10);
+    } else {
+        print(48);
+    }
+
+    while(x > 0) {
+        x = x - 1;
+        int ttt = 18;
+        while(ttt > 0) {
+            ttt = ttt - 1;
+        }
+    }
+    
     printNum(mul(z)); // 计算阶乘
     print(10);
     
