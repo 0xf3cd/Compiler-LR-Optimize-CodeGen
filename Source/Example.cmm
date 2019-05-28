@@ -89,14 +89,21 @@ int main() {
     print(10);
 
     int temp = 1;
-
-    int z = readNum();
-    // readNum();
     if(temp) {
         print(10);
     } else {
         print(48);
     }
+
+    int try = readNum();
+    if(try == try) {
+        print(10);
+    } else {
+        print(48);
+    }
+
+    try = try * 1;
+    try = try;
 
     while(x > 0) {
         x = x - 1;
@@ -105,7 +112,8 @@ int main() {
             ttt = ttt - 1;
         }
     }
-    
+
+    int z = readNum();
     printNum(mul(z)); // 计算阶乘
     print(10);
     

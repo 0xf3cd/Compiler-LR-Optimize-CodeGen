@@ -39,7 +39,7 @@ _print:
 _printNum:
 	push	rbp
 	mov		rbp, rsp
-	sub		rsp, 176
+	sub		rsp, 80
 	mov		rcx, [rbp+16]
 	mov		rdx, 0
 	cmp		rcx, rdx
@@ -59,9 +59,8 @@ L1:
 	push	qword	rcx
 	call	_print
 	add		rsp, 8
-	mov		rcx, 0
-	mov		rdx, [rbp+16]
-	sub		rcx, rdx
+	mov		rcx, [rbp+16]
+	neg		rcx
 	mov		[rbp-16], rcx
 	mov		rcx, [rbp-16]
 	push	qword	rcx
@@ -163,7 +162,7 @@ L11:
 _readNum:
 	push	rbp
 	mov		rbp, rsp
-	sub		rsp, 224
+	sub		rsp, 120
 	mov		rcx, 0
 	mov		[rbp-8], rcx
 	mov		rcx, 0
@@ -222,7 +221,7 @@ L16:
 	mov		rdx, 48
 	sub		rcx, rdx
 	mov		[rbp-80], rcx
-	mov		rcx, [rbp-16]
+	mov		rcx, [rbp-72]
 	mov		rdx, [rbp-80]
 	add		rcx, rdx
 	mov		[rbp-88], rcx
@@ -234,19 +233,15 @@ L16:
 	mov		[rbp-96], rcx
 	mov		rcx, [rbp-96]
 	mov		[rbp-24], rcx
-	mov		rcx, [rbp-40]
-	mov		rdx, 48
+	mov		rcx, [rbp-96]
+	mov		rdx, [rbp-80]
 	sub		rcx, rdx
 	mov		[rbp-104], rcx
-	mov		rcx, [rbp-24]
-	mov		rdx, [rbp-104]
-	sub		rcx, rdx
-	mov		[rbp-112], rcx
-	mov		rcx, [rbp-112]
+	mov		rcx, [rbp-104]
 	mov		[rbp-24], rcx
 	call	_read
-	mov		[rbp-120], rax
-	mov		rcx, [rbp-120]
+	mov		[rbp-112], rax
+	mov		rcx, [rbp-112]
 	mov		[rbp-40], rcx
 	jmp		L17
 L18:
@@ -255,13 +250,13 @@ L18:
 	cmp		rcx, rdx
 	je		L19
 	mov		rcx, 0
-	mov		[rbp-128], rcx
+	mov		[rbp-120], rcx
 	jmp		L20
 L19:
 	mov		rcx, 1
-	mov		[rbp-128], rcx
+	mov		[rbp-120], rcx
 L20:
-	mov		rcx, [rbp-128]
+	mov		rcx, [rbp-120]
 	mov		rdx, 0
 	cmp		rcx, rdx
 	je		L21
@@ -269,14 +264,8 @@ L20:
 	mov		rsp, rbp
 	pop		rbp
 	ret
-	jmp		L22
 L21:
 	mov		rax, [rbp-24]
-	mov		rsp, rbp
-	pop		rbp
-	ret
-L22:
-	mov		rax, 0
 	mov		rsp, rbp
 	pop		rbp
 	ret
@@ -284,53 +273,41 @@ L22:
 _mul:
 	push	rbp
 	mov		rbp, rsp
-	sub		rsp, 72
-	mov		rcx, 0
-	mov		[rbp-8], rcx
+	sub		rsp, 32
 	mov		rcx, [rbp+16]
 	mov		rdx, 1
 	cmp		rcx, rdx
 	jle		L23
 	mov		rcx, 0
-	mov		[rbp-16], rcx
+	mov		[rbp-8], rcx
 	jmp		L24
 L23:
 	mov		rcx, 1
-	mov		[rbp-16], rcx
+	mov		[rbp-8], rcx
 L24:
-	mov		rcx, [rbp-16]
+	mov		rcx, [rbp-8]
 	mov		rdx, 0
 	cmp		rcx, rdx
 	je		L25
-	mov		rcx, [rbp+16]
-	mov		[rbp-8], rcx
-	mov		rax, [rbp-8]
+	mov		rax, [rbp+16]
 	mov		rsp, rbp
 	pop		rbp
 	ret
-	jmp		L26
 L25:
 	mov		rcx, [rbp+16]
 	mov		rdx, 1
 	sub		rcx, rdx
-	mov		[rbp-24], rcx
-	mov		rcx, [rbp-24]
+	mov		[rbp-16], rcx
+	mov		rcx, [rbp-16]
 	push	qword	rcx
 	call	_mul
 	add		rsp, 8
-	mov		[rbp-32], rax
+	mov		[rbp-24], rax
 	mov		rcx, [rbp+16]
-	mov		rdx, [rbp-32]
+	mov		rdx, [rbp-24]
 	imul	rcx, rdx
-	mov		[rbp-40], rcx
-	mov		rcx, [rbp-40]
-	mov		[rbp-8], rcx
-	mov		rax, [rbp-8]
-	mov		rsp, rbp
-	pop		rbp
-	ret
-L26:
-	mov		rax, 0
+	mov		[rbp-32], rcx
+	mov		rax, [rbp-32]
 	mov		rsp, rbp
 	pop		rbp
 	ret
@@ -338,7 +315,7 @@ L26:
 _mul2:
 	push	rbp
 	mov		rbp, rsp
-	sub		rsp, 64
+	sub		rsp, 32
 	mov		rcx, [rbp+16]
 	mov		[rbp-8], rcx
 L29:
@@ -367,11 +344,7 @@ L28:
 	mov		[rbp-32], rcx
 	mov		rcx, [rbp-32]
 	mov		[rbp-8], rcx
-	mov		rcx, [rbp+16]
-	mov		rdx, 1
-	sub		rcx, rdx
-	mov		[rbp-40], rcx
-	mov		rcx, [rbp-40]
+	mov		rcx, [rbp-24]
 	mov		[rbp+16], rcx
 	jmp		L29
 L30:
@@ -383,14 +356,14 @@ L30:
 _main:
 	push	rbp
 	mov		rbp, rsp
-	sub		rsp, 200
+	sub		rsp, 88
 	call	_readNum
 	mov		[rbp-8], rax
 	mov		rcx, [rbp-8]
 	mov		[rbp-16], rcx
 	call	_readNum
 	mov		[rbp-24], rax
-	mov		rcx, [rbp-16]
+	mov		rcx, [rbp-8]
 	mov		rdx, [rbp-24]
 	add		rcx, rdx
 	mov		[rbp-32], rcx
@@ -402,69 +375,68 @@ _main:
 	push	qword	rcx
 	call	_print
 	add		rsp, 8
-	call	_readNum
-	mov		[rbp-40], rax
 	mov		rcx, 10
 	push	qword	rcx
 	call	_print
 	add		rsp, 8
-	jmp		L32
-L31:
-	mov		rcx, 48
+	call	_readNum
+	mov		rcx, 10
 	push	qword	rcx
 	call	_print
 	add		rsp, 8
-L32:
+L36:
 	mov		rcx, [rbp-16]
 	mov		rdx, 0
 	cmp		rcx, rdx
-	jg		L33
+	jg		L37
 	mov		rcx, 0
-	mov		[rbp-48], rcx
-	jmp		L34
-L33:
+	mov		[rbp-40], rcx
+	jmp		L38
+L37:
 	mov		rcx, 1
-	mov		[rbp-48], rcx
-L34:
-	mov		rcx, [rbp-48]
+	mov		[rbp-40], rcx
+L38:
+	mov		rcx, [rbp-40]
 	mov		rdx, 0
 	cmp		rcx, rdx
-	je		L40
+	je		L44
 	mov		rcx, [rbp-16]
 	mov		rdx, 1
 	sub		rcx, rdx
-	mov		[rbp-56], rcx
-	mov		rcx, [rbp-56]
+	mov		[rbp-48], rcx
+	mov		rcx, [rbp-48]
 	mov		[rbp-16], rcx
 	mov		rcx, 18
-	mov		[rbp-64], rcx
-L37:
-	mov		rcx, [rbp-64]
+	mov		[rbp-56], rcx
+L41:
+	mov		rcx, [rbp-56]
 	mov		rdx, 0
 	cmp		rcx, rdx
-	jg		L35
+	jg		L39
 	mov		rcx, 0
-	mov		[rbp-72], rcx
-	jmp		L36
-L35:
+	mov		[rbp-64], rcx
+	jmp		L40
+L39:
 	mov		rcx, 1
-	mov		[rbp-72], rcx
-L36:
-	mov		rcx, [rbp-72]
+	mov		[rbp-64], rcx
+L40:
+	mov		rcx, [rbp-64]
 	mov		rdx, 0
 	cmp		rcx, rdx
-	je		L38
-	mov		rcx, [rbp-64]
+	je		L42
+	mov		rcx, [rbp-56]
 	mov		rdx, 1
 	sub		rcx, rdx
-	mov		[rbp-80], rcx
+	mov		[rbp-72], rcx
+	mov		rcx, [rbp-72]
+	mov		[rbp-56], rcx
+	jmp		L41
+L42:
+	jmp		L36
+L44:
+	call	_readNum
+	mov		[rbp-80], rax
 	mov		rcx, [rbp-80]
-	mov		[rbp-64], rcx
-	jmp		L37
-L38:
-	jmp		L32
-L40:
-	mov		rcx, [rbp-40]
 	push	qword	rcx
 	call	_mul
 	add		rsp, 8

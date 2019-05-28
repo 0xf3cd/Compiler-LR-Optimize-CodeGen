@@ -4,13 +4,13 @@ const isGlobal = function(varName) {
 };
 
 /**
- * 代码优化器类
+ * 全局代码优化器类
  * 进行常量折叠、常量传播、复写传播、部分死代码消除等优化
- * 也进行一部分的窥孔优化，删去一部分无用的标签
- * 进行简单的优化，不将中间代码转换为数据流图
+ * 也进行一部分的窥孔优化，删去一部分无用的标签，删除掉一部分无用赋值（如 a = a），替换掉一部分无用的加减乘除运算（如 a = b * 1）
+ * 不将中间代码转换为数据流图，在整体基础上做一部分优化
  * @class
  */
-class IR_Optimizer {
+class IR_Optimizer_Global {
     constructor() {
         /**
          * 记录中间代码中的全局变量部分
@@ -27,7 +27,7 @@ class IR_Optimizer {
  * @param {Array} globalIR
  * @return 优化后的全局中间代码
  */
-IR_Optimizer.prototype._optimizeGlobal = function(globalIR) {
+IR_Optimizer_Global.prototype._optimizeGlobal = function(globalIR) {
     const continueSet = new Set(['bss', 'data']);
     const bss = new Set();
     const data = new Set();
@@ -141,17 +141,22 @@ IR_Optimizer.prototype._optimizeGlobal = function(globalIR) {
 
 /**
  * 具体优化函数中间代码的函数
+ * 删除无用变量，无用标签，无用赋值等
  * @private
  * @param {Array} funcIR
  * @return 优化后的全局中间代码，以及相关的优化信息
  */
-IR_Optimizer.prototype._optimizeFunc = function(funcIR) {
+IR_Optimizer_Global.prototype._optimizeFunc = function(funcIR) {
     const continueSet = new Set(['func', 'fparam', 'flocal']);
     const fparam = new Set();
     const flocal = new Set();
     const assignMap = new Map();
     const calcMap = new Map();
     const replaceMap = new Map();
+    const assignCount = new Map();
+    const opCount = new Map();
+    const jumpSet = new Set(['goto', 'jl', 'jle', 'jg', 'jge', 'je', 'jne']);
+    const gotoSet = new Set();
 
     const IRlength = funcIR.length;
     let i = 0;
@@ -173,6 +178,11 @@ IR_Optimizer.prototype._optimizeFunc = function(funcIR) {
     for(let each of new Set([...fparam, ...flocal])) {
         assignMap.set(each, new Set());
         calcMap.set(each, new Set());
+    }
+
+    for(let each of flocal) {
+        assignCount.set(each, 0);
+        opCount.set(each, 0);
     }
 
     while(true) {
@@ -202,6 +212,10 @@ IR_Optimizer.prototype._optimizeFunc = function(funcIR) {
             if(assignMap.has(to)) {
                 calcMap.get(to).add(eachStat[0]);
             }
+
+            if(jumpSet.has(eachStat[0])) {
+                gotoSet.add(eachStat[3]);
+            }
         }
 
         i++;
@@ -223,19 +237,67 @@ IR_Optimizer.prototype._optimizeFunc = function(funcIR) {
         }
     }
 
+    for(let each of funcIR) {
+        if(flocal.has(each[3])) {
+            assignCount.set(each[3], assignCount.get(each[3])+1);
+        }
+
+        if(flocal.has(each[1]) && !continueSet.has(each[0])) {
+            opCount.set(each[1], opCount.get(each[1])+1)
+        }
+        if(flocal.has(each[2]) && !continueSet.has(each[0])) {
+            opCount.set(each[2], opCount.get(each[2])+1)
+        }
+    }
+
+    let unusedCount = 0;
+    let uselessCount = 0;
     const replaceNum = replaceMap.size;
     const newIR = new Array();
 
+    // 删除无用变量和标签
     for(let each of funcIR) {
         each = new Array(...each);
-        if(each[0] === 'flocal') {
+        if(each[0] === 'flocal') { // 将无用变量从局部变量表中移除
             if(replaceMap.has(each[1])) {
                 continue;
             }
-        } else if (each[0] === 'assign') {
+
+            if(assignCount.get(each[1]) === 0) {
+                unusedCount++;
+                continue;
+            }
+
+            if(opCount.get(each[1]) === 0) {
+                uselessCount++;
+                continue;
+            }
+        } else if(each[0] === 'assign') { // 删除对无用变量的赋值
             if(replaceMap.has(each[3]) && replaceMap.get(each[3]) === each[1]) {
                 continue;
             }
+
+            if(opCount.get(each[3]) === 0) {
+                continue;
+            }
+        } else if(each[0] === 'call') { 
+            /**
+             * 对无用变量进行函数调用需要特殊处理
+             * 如 a 为无用变量，却又有语句 a = f(1, 2);
+             * 则优化为 f(1, 2)，函数返回值不对 a 进行赋值
+             */
+            if(opCount.get(each[3]) === 0) {
+                uselessCount++;
+                each[3] = '';
+                // continue; // 去掉注释则不执行 f(1, 2)
+            }
+        } else if(each[0] === 'label') { // 删除无用标签
+            if(!gotoSet.has(each[3])) {
+                uselessCount++;
+                continue;
+            }
+        } else if(opCount.get(each[3]) === 0) {
+            continue;
         }
 
         for(let i = 1; i < 4; i++) {
@@ -256,7 +318,7 @@ IR_Optimizer.prototype._optimizeFunc = function(funcIR) {
 
     return {
         newIR: newIR,
-        replaceNum: replaceNum
+        count: replaceNum + unusedCount + uselessCount
     };
 };
 
@@ -266,7 +328,7 @@ IR_Optimizer.prototype._optimizeFunc = function(funcIR) {
  * @param {Array} IR
  * @return 优化后的中间代码，及进行常量折叠优化的情况
  */
-IR_Optimizer.prototype._constantFolding = function(IR) {
+IR_Optimizer_Global.prototype._constantFolding = function(IR) {
     let count = 0;
     const newIR = new Array();
     for(let each of IR) {
@@ -306,6 +368,12 @@ IR_Optimizer.prototype._constantFolding = function(IR) {
             count++;
             newIR.push(['assign', ans.toString(), '', each[3]]);
             continue;
+        } else if(!isNaN(parseInt(each[1])) && each[0] === 'uminus') {
+            const p1 = parseInt(each[1]);
+            const ans = -p1;
+            count++;
+            newIR.push(['assign', ans.toString(), '', each[3]]);
+            continue;
         }
         newIR.push(each);
     }
@@ -322,7 +390,7 @@ IR_Optimizer.prototype._constantFolding = function(IR) {
  * @param {Array} globalIR
  * @return 优化后的全局中间代码，及优化过程的相关情况
  */
-IR_Optimizer.prototype.optimizeGlobal = function(globalIR) {
+IR_Optimizer_Global.prototype.optimizeGlobal = function(globalIR) {
     let IR = globalIR;
     let changeNum = 0;
     let replaceMap = new Map();
@@ -384,7 +452,7 @@ IR_Optimizer.prototype.optimizeGlobal = function(globalIR) {
  * @param {Array} globalReplaceMap
  * @return 优化后的函数中间代码
  */
-IR_Optimizer.prototype.optimizeFunc = function(funcIR, globalReplaceMap) {
+IR_Optimizer_Global.prototype.optimizeFunc = function(funcIR, globalReplaceMap) {
     const replacedFuncIR = new Array();
     for(let eachFunc of funcIR) {
         eachFunc = new Array(...eachFunc);
@@ -409,7 +477,7 @@ IR_Optimizer.prototype.optimizeFunc = function(funcIR, globalReplaceMap) {
         while(true) {
             const result = this._optimizeFunc(optimizedFunc);
             optimizedFunc = result.newIR;
-            changeNum = result.replaceNum;
+            changeNum = result.count;
 
             const foldedResult = this._constantFolding(optimizedFunc);
             optimizedFunc = foldedResult.IR;
@@ -439,7 +507,7 @@ IR_Optimizer.prototype.optimizeFunc = function(funcIR, globalReplaceMap) {
  * @param {Array} IR
  * @return 消除部分死代码后的中间代码，及优化情况
  */
-IR_Optimizer.prototype._eliminateDeadCode = function(IR) {
+IR_Optimizer_Global.prototype._eliminateDeadCode = function(IR) {
     const cmpIR = new Set(['jg', 'jge', 'jl', 'jle', 'je', 'jne']);
     const newIR = new Array();
     let count = 0;
@@ -452,44 +520,83 @@ IR_Optimizer.prototype._eliminateDeadCode = function(IR) {
 
         const v1 = parseInt(ir[1]);
         const v2 = parseInt(ir[2]);
-        if(isNaN(v1) || isNaN(v2)) {
+
+        if(isNaN(v1) && isNaN(v2)) {
+            if(ir[1] === ir[2]) {
+                // 如果两个比较的变量相同
+                count++;
+                let cmpResult;
+                switch(ir[0]) {
+                    case('jg'): {
+                        cmpResult = false;
+                        break;
+                    }
+                    case('jge'): {
+                        cmpResult = true;
+                        break;
+                    }
+                    case('jl'): {
+                        cmpResult = false;
+                        break;
+                    }
+                    case('jle'): {
+                        cmpResult = true;
+                        break;
+                    }
+                    case('je'): {
+                        cmpResult = true;
+                        break;
+                    }
+                    case('jne'): {
+                        cmpResult = false;
+                        break;
+                    }
+                }
+
+                // console.log(cmpResult);
+                if(cmpResult) {
+                    newIR.push(['goto', '', '', ir[3]]);
+                }
+            } else {
+                newIR.push(ir);
+            }
+        } else if(!isNaN(v1) && !isNaN(v2)) {
+            // 至此，这条比较指令两个比较数都为常数
+            count++;
+            let cmpResult;
+            switch(ir[0]) {
+                case('jg'): {
+                    cmpResult = v1 > v2? true: false;
+                    break;
+                }
+                case('jge'): {
+                    cmpResult = v1 >= v2? true: false;
+                    break;
+                }
+                case('jl'): {
+                    cmpResult = v1 < v2? true: false;
+                    break;
+                }
+                case('jle'): {
+                    cmpResult = v1 <= v2? true: false;
+                    break;
+                }
+                case('je'): {
+                    cmpResult = v1 === v2? true: false;
+                    break;
+                }
+                case('jne'): {
+                    cmpResult = v1 !== v2? true: false;
+                    break;
+                }
+            }
+
+            // console.log(cmpResult);
+            if(cmpResult) {
+                newIR.push(['goto', '', '', ir[3]]);
+            }
+        } else {
             newIR.push(ir);
-            return;
-        }
-
-        // 至此，这条比较指令两个比较数都为常数
-        count++;
-        let cmpResult;
-        switch(ir[0]) {
-            case('jg'): {
-                cmpResult = v1 > v2? true: false;
-                break;
-            }
-            case('jge'): {
-                cmpResult = v1 >= v2? true: false;
-                break;
-            }
-            case('jl'): {
-                cmpResult = v1 < v2? true: false;
-                break;
-            }
-            case('jle'): {
-                cmpResult = v1 <= v2? true: false;
-                break;
-            }
-            case('je'): {
-                cmpResult = v1 === v2? true: false;
-                break;
-            }
-            case('jne'): {
-                cmpResult = v1 !== v2? true: false;
-                break;
-            }
-        }
-
-        // console.log(cmpResult);
-        if(cmpResult) {
-            newIR.push(['goto', '', '', ir[3]]);
         }
     });
 
@@ -502,16 +609,17 @@ IR_Optimizer.prototype._eliminateDeadCode = function(IR) {
 /**
  * 进行一部分窥孔优化
  * 删除连续出现的标签
+ * 删除形如 a = a 的赋值
  * @private
  * @param {Array} IR
  * @return 优化后的中间代码，及优化情况
  */
-IR_Optimizer.prototype._peepholeOptimize = function(IR) {
+IR_Optimizer_Global.prototype._redundantOptimize = function(IR) {
     const newIR = new Array();
     const replaceMap = new Map(); // 记录标签替换的情况
     const redundantLine = new Set(); // 记录需要删去的标签所在行数
     
-    // 窥孔窗口大小为 2
+    // 删除连续标签时窥孔窗口大小为 2
     for(let i = 0; i < IR.length-1; i++) {
         if(IR[i][0] === 'label' && IR[i+1][0] === 'label') {
             const l1 = IR[i][3];
@@ -519,6 +627,15 @@ IR_Optimizer.prototype._peepholeOptimize = function(IR) {
 
             replaceMap.set(l2, l1);
             redundantLine.add(i+1);
+        }
+    }
+
+    // 删除形如 a = a 的赋值
+    for(let i = 0; i < IR.length; i++) {
+        if(IR[i][0] === 'assign') {
+            if(IR[i][1] === IR[i][3]) {
+                redundantLine.add(i);
+            }
         }
     }
 
@@ -564,12 +681,88 @@ IR_Optimizer.prototype._peepholeOptimize = function(IR) {
 };
 
 /**
+ * 对中间代码进行替换
+ * 替换无意义的加减乘除等运算，如 a = a * 0, b = c + 0, d = e / 1;
+ * @private
+ * @param {Array} IR
+ * @return 优化后的中间代码，及优化情况
+ */
+IR_Optimizer_Global.prototype._replaceOptimize = function(IR) {
+    const newIR = new Array();
+    let count = 0;
+
+    for(let each of IR) {
+        if(each[0] === '+') {
+            if(each[1] === '0') {
+                count++;
+                newIR.push(['assign', each[2], '', each[3]]);
+            } else if(each[2] === '0') {
+                count++;
+                newIR.push(['assign', each[1], '', each[3]]);
+            } else {
+                newIR.push(each);
+            }
+        } else if(each[0] === '-') {
+            if(each[1] === '0') {
+                count++;
+                newIR.push(['uminus', each[2], '', each[3]]);
+            } else if(each[2] === '0') {
+                count++;
+                newIR.push(['assign', each[1], '', each[3]]);
+            } else {
+                newIR.push(each);
+            }
+        } else if(each[0] === '*') {
+            if(each[1] === '0') {
+                count++;
+                newIR.push(['assign', '0', '', each[3]]);
+            } else if(each[2] === '0') {
+                count++;
+                newIR.push(['assign', '0', '', each[3]]);
+            } else if(each[1] === '1') {
+                count++;
+                newIR.push(['assign', each[2], '', each[3]]);
+            } else if(each[2] === '1') {
+                count++;
+                newIR.push(['assign', each[1], '', each[3]]);
+            } else {
+                newIR.push(each);
+            }
+        } else if(each[0] === '/') {
+            if(each[1] === '0') {
+                count++;
+                newIR.push(['assign', '0', '', each[3]]);
+            } else if(each[2] === '1') {
+                count++;
+                newIR.push(['assign', each[1], '', each[3]]);
+            } else {
+                newIR.push(each);
+            }
+        } else if(each[0] === 'uminus') {
+            if(each[1] === '0') {
+                count++;
+                newIR.push(['assign', '0', '', each[3]]);
+            } else {
+                newIR.push(each);
+            }
+        } else {
+            newIR.push(each);
+        }
+    }
+
+    return {
+        IR: newIR,
+        count: count
+    };
+};
+
+/**
  * 将中间代码进行优化
  * @public
- * @param {Array} funcIR
+ * @param {Array} IR
  * @return 进行优化后的代码，以及优化的情况
  */
-IR_Optimizer.prototype.optimize = function(IR) {
+IR_Optimizer_Global.prototype.optimize = function(IR) {
     let optimizedGlobal = IR.global;
     let globalReplaceMap;
     let optimizedFunc = IR.funcs;
@@ -593,7 +786,11 @@ IR_Optimizer.prototype.optimize = function(IR) {
         optimizedGlobal = result.IR;
         count += result.eliminateNum;
 
-        result = this._peepholeOptimize(optimizedGlobal);
+        result = this._redundantOptimize(optimizedGlobal);
+        optimizedGlobal = result.IR;
+        count += result.count;
+
+        result = this._replaceOptimize(optimizedGlobal);
         optimizedGlobal = result.IR;
         count += result.count;
 
@@ -602,7 +799,10 @@ IR_Optimizer.prototype.optimize = function(IR) {
             result = this._eliminateDeadCode(each);
             count += result.eliminateNum;
 
-            result = this._peepholeOptimize(result.IR);
+            result = this._redundantOptimize(result.IR);
+            count += result.count;
+
+            result = this._replaceOptimize(result.IR);
             newOptimizedFunc.push(result.IR);
             count += result.count;
         }
@@ -628,13 +828,36 @@ IR_Optimizer.prototype.optimize = function(IR) {
             globalVars.add(eachIR[1]);
         }
     }
+
+    const funcVarNum = new Map();
+    for(let each of optimizedFunc) {
+        const funcName = each[0][3];
+        let i = 1;
+        let fparamCount = 0;
+        let flocalCount = 0;
+        while(true) {
+            if(each[i][0] === 'fparam') {
+                fparamCount++;
+            } else if(each[i][0] === 'flocal') {
+                flocalCount++;
+            } else {
+                break;
+            }
+            i++;
+        }
+
+        funcVarNum.set(funcName, [fparamCount, flocalCount]);
+    }
+    funcVarNum.set('_print', [1, 0]);
+    funcVarNum.set('_read', [0, 0]);    
+
     
     return {
         global: optimizedGlobal,
         funcs: optimizedFunc,
-        funcVarNum: IR.funcVarNum,
+        funcVarNum: funcVarNum,
         count: totalCount
     };
 };
 
-module.exports = IR_Optimizer;
+module.exports = IR_Optimizer_Global;

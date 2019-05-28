@@ -1,7 +1,7 @@
 const Parser = require('./Parser.js');
 const IR_Gen = require('./IR_Generator.js');
-const IR_Optimizer = require('./IR_Optimizer.js');
-const Reg_Allocator = require('./Reg_Allocator.js');
+const IR_Optimizer_Global = require('./IR_Optimizer_Global.js');
+const IR_Optimizer_CFG = require('./IR_Optimizer_CFG.js');
 const CodeGen = require('./CodeGen.js');
 const fs = require('fs');
 const child_process = require('child_process');
@@ -15,8 +15,8 @@ const exeFileDir = './Result/Example';
 
 let P = new Parser(); // 进行语法分析
 let I = new IR_Gen(); // 进行语义分析及中间代码生成
-let IO = new IR_Optimizer(); // 对中间代码进行常量折叠、常量传播、复写传播、部分死代码消除等优化，也进行一部分窥孔优化
-let RA = new Reg_Allocator(); // 分配寄存器
+let IOG = new IR_Optimizer_Global(); // 对中间代码进行常量折叠、常量传播、复写传播、部分死代码消除等优化，也进行一部分窥孔优化
+let IOC = new IR_Optimizer_CFG(); // 分析控制流图进行中间代码优化
 let CG = new CodeGen(); // 由中间代码生成目标代码
 
 P.setGrammar('./Grammar/Grammar.txt');
@@ -46,13 +46,34 @@ while(true) {
 const IR = I.getIR();
 // console.log(IR.funcs);
 
-const optimizedIR = IO.optimize(IR);
-// console.log(optimizedIR.global);
-// console.log(optimizedIR.count);
+let optimizedIR_Global = IOG.optimize(IR);
+// console.log(optimizedIR_Global.global);
+console.log(optimizedIR_Global.count);
 
-RA.splitIR(optimizedIR.funcs[0]);
+let optimizedIR_CFG = IOC.optimize(optimizedIR_Global);
+console.log(optimizedIR_CFG.count);
 
-CG.initialize(optimizedIR);
+optimizedIR_Global = IOG.optimize(optimizedIR_CFG);
+console.log(optimizedIR_Global.count);
+
+optimizedIR_CFG = IOC.optimize(optimizedIR_Global);
+console.log(optimizedIR_CFG.count);
+
+optimizedIR_Global = IOG.optimize(optimizedIR_CFG);
+console.log(optimizedIR_Global.count);
+
+optimizedIR_CFG = IOC.optimize(optimizedIR_Global);
+console.log(optimizedIR_CFG.count);
+
+console.log(IR.funcs[0]);
+// console.log(optimizedIR_Global.funcs[0]);
+console.log(optimizedIR_CFG.funcs[0]);
+
+// console.log(IR.funcVarNum);
+// console.log(optimizedIR_Global.funcVarNum);
+// console.log(optimizedIR_CFG.funcVarNum);
+
+CG.initialize(optimizedIR_CFG);
 CG.translate();
 const nasm = CG.showNasm(); // 汇编代码
 // console.log(nasm);
