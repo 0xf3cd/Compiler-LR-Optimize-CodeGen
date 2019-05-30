@@ -197,8 +197,10 @@ Reg_Allocator.prototype._graphColoration = function(liveInfoSet, varSet) {
     const varNum = varSet.size;
     let no = 0;
     const varNo = new Map(); // 为变量分配编号
+    const noVar = new Map(); // 以上 map 的逆
     for(let v of varSet) {
         varNo.set(v, no);
+        noVar.set(no, v);
         no++;
     }
 
@@ -226,10 +228,13 @@ Reg_Allocator.prototype._graphColoration = function(liveInfoSet, varSet) {
     }
     // 至此，得到了对应的邻接矩阵
 
-    const allocateMap = new Map();
-    const endSize = varNum > 10? 10: varNum; // 当所有变量分配完毕，或是所有寄存器已经分配完时，结束分配
+    const allocateMap = new Map(); // 成功分配的变量
+    const unallocatedSet = new Set(); // 未分配的变量
+
+    // 根据 Chaitin 算法，将结点压栈
+    // const endSize = varNum > 10? 10: varNum; // 当所有变量分配完毕，或是所有寄存器已经分配完时，结束分配
     const varStack = new Array; // 用数组模拟 Chaitin 算法中的栈
-    while(allocateMap.size < endSize) {
+    for(let i = 0; i < varNum; i++) {
         let connectNum = varNum + 1;
         let leastConnectVar;
         for(let v of varSet) {
@@ -256,7 +261,97 @@ Reg_Allocator.prototype._graphColoration = function(liveInfoSet, varSet) {
         varStack.push(leastConnectVar);
     }
 
-    console.log(varStack);
+    // console.log(varStack);
+    // 接下来开始弹栈，依次分配寄存器
+    while(varStack.length > 0) {
+        const v = varStack.shift();
+        const vn = varNo.get(v);
+
+        const neighbors = new Set(); // 记录变量 v 的所有邻居节点编号
+        for(let i = 0; i < varNum; i++) {
+            if(matrix[vn][i]) {
+                neighbors.add(i);
+            }
+        } // 至此，neighbors 已经储存了所有 v 的邻居节点的编号
+
+        const neighborColors = new Set(); // 记录 v 的所有邻居节点的颜色
+        for(let n of neighbors) {
+            const n_name = noVar.get(n);
+            if(allocateMap.has(n_name)) {
+                neighborColors.add(allocateMap.get(n_name));
+            }
+        } // 至此，得到了 v 的邻居节点的颜色
+
+        if(neighborColors.size === 10) { // 周围节点占据了所有颜色
+            unallocatedSet.add(v);
+        } else {
+            // 还有颜色可以分配
+            let color = 1;
+            for(; color <= 10; color++) {
+                if(!neighborColors.has(color)) {
+                    allocateMap.set(v, color);
+                    break;
+                }
+            }
+        }
+    }
+
+    // console.log(allocateMap);
+    // console.log(unallocatedSet);
+    return {
+        allocated: allocateMap,
+        unallocated: unallocatedSet
+    };
+};
+
+/**
+ * 为传入的函数的中间代码分配寄存器
+ * rbx 作为临时寄存器
+ * rcx, rdx, r8 - r15 共 10 个寄存器用于分配
+ * @puclic
+ * @param {Array} partIR 函数的中间代码
+ * @return {Object} 分配结果
+ */
+Reg_Allocator.prototype.allocateRegForPartIR = function(partIR) {
+    const varSet = new Set();
+    const continueSet = new Set(['func', 'bss', 'data', 'fparam', 'flocal']);
+    for(let each of partIR) {
+        if(!continueSet.has(each[0])) {
+            break;
+        }
+
+        if(each[0] !== 'func') {
+            varSet.add(each[1]);
+        }
+    } // 至此，得到这一段中间代码中所有变量
+
+    // if(varSet.size < 10) {
+        // 如果变量数小于 10，可以考虑直接分配寄存器
+    // }
+
+    const liveInfo = this._getLiveInfo(partIR);
+    return this._graphColoration(liveInfo, varSet);
+};
+
+/**
+ * 为所有中间代码分配寄存器
+ * rbx 作为临时寄存器
+ * rcx, rdx, r8 - r15 共 10 个寄存器用于分配
+ * @puclic
+ * @param {Array} IR 中间代码
+ * @return {Object} 分配结果
+ */
+Reg_Allocator.prototype.allocateReg = function(IR) {
+    const allocRes = new Map();
+    
+    allocRes.set('global', this.allocateRegForPartIR(IR.global));
+
+    for(let eachFunc of IR.funcs) {
+        const funcName = eachFunc[0][3];
+        allocRes.set(funcName, this.allocateRegForPartIR(eachFunc))
+    }
+
+    return allocRes;
 };
 
 module.exports = Reg_Allocator;

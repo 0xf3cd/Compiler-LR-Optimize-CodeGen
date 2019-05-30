@@ -37,7 +37,14 @@ class CodeGen {
         this._funcVarNum = null;
 
         /**
-         * 记录会变代码
+         * 记录寄存器分配结果
+         * @private
+         * @type {Map}
+         */
+        this._allocRes = null;
+
+        /**
+         * 记录汇编代码
          * @private
          * @type {Array}
          */
@@ -49,14 +56,15 @@ class CodeGen {
 }
 
 /**
- * 将中间代码进行存储
+ * 将中间代码和寄存器分配结果进行存储
  * @public
  * @param {Array} IR
  */
-CodeGen.prototype.initialize = function(IR) {
+CodeGen.prototype.initialize = function(IR, allocRes) {
     this._global = IR.global;
     this._funcs = IR.funcs;
     this._funcVarNum = IR.funcVarNum;
+    this._allocRes = allocRes;
 };
 
 /**

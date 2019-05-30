@@ -27,7 +27,7 @@ P.setGrammar('./Grammar/Grammar.txt');
 P.setSource(srcFileDir);
 P.initialize();
 
-I.setProdNoFilePath('./Grammar/Production-No.txt');
+I.setProdNoFilePath('Grammar/Production-No.txt');
 I.readProdNoFile();
 
 while(true) {
@@ -76,17 +76,11 @@ while(true) {
 // const splitIR = GC.splitIR(optimizedIR_Global.funcs[0]);
 // console.log(splitIR);
 // RA._calcLiveOfBlockIR([['assign', 'a', '', 'x'], ['*', '13', 'a', 'd'], ['ret', '1', '', '']], new Set());
-// RA._getLiveInfo(IR.funcs[0]);
-const liveInfo = RA._getLiveInfo([
-    ['assign', '17', '', 'y'],
-    ['+', 'x', 'y', 'a'],
-    ['assign', '13', '', 'x'],
-    ['+', 'x', 'a', 'b'],
-    ['ret', 'b', '', '']
-]);
-console.log(liveInfo);
+// const allocRes = RA.allocateRegForPartIR(IR.funcs[6]);
+const allocRes = RA.allocateReg(IR);
+console.log(allocRes);
 
-CG.initialize(IR);
+CG.initialize(IR, allocRes);
 CG.translate();
 const nasm = CG.showNasm(); // 汇编代码
 // console.log(nasm);
