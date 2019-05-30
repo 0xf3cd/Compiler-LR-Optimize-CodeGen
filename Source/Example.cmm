@@ -82,6 +82,27 @@ int mul2(int x) {
     return result;
 }
 
+int f1(int x) {
+    if(x > 1) {
+        x = 19;
+        return 1;
+    } else {
+        x = x * x;
+        return 1;
+    }
+
+    return 1;
+}
+
+int f2(int x) {
+    int y = 18 + x;
+    while(y > 0) {
+        y = y - 1;
+    }
+
+    return x;
+}
+
 int main() {
     int x = readNum();
     int y = readNum();

@@ -353,6 +353,24 @@ L30:
 	pop		rbp
 	ret
 
+_f1:
+	push	rbp
+	mov		rbp, rsp
+	sub		rsp, 0
+	mov		rax, 1
+	mov		rsp, rbp
+	pop		rbp
+	ret
+
+_f2:
+	push	rbp
+	mov		rbp, rsp
+	sub		rsp, 0
+	mov		rax, [rbp+16]
+	mov		rsp, rbp
+	pop		rbp
+	ret
+
 _main:
 	push	rbp
 	mov		rbp, rsp
@@ -384,22 +402,22 @@ _main:
 	push	qword	rcx
 	call	_print
 	add		rsp, 8
-L36:
+L44:
 	mov		rcx, [rbp-16]
 	mov		rdx, 0
 	cmp		rcx, rdx
-	jg		L37
+	jg		L45
 	mov		rcx, 0
 	mov		[rbp-40], rcx
-	jmp		L38
-L37:
+	jmp		L46
+L45:
 	mov		rcx, 1
 	mov		[rbp-40], rcx
-L38:
+L46:
 	mov		rcx, [rbp-40]
 	mov		rdx, 0
 	cmp		rcx, rdx
-	je		L44
+	je		L52
 	mov		rcx, [rbp-16]
 	mov		rdx, 1
 	sub		rcx, rdx
@@ -408,32 +426,32 @@ L38:
 	mov		[rbp-16], rcx
 	mov		rcx, 18
 	mov		[rbp-56], rcx
-L41:
+L49:
 	mov		rcx, [rbp-56]
 	mov		rdx, 0
 	cmp		rcx, rdx
-	jg		L39
+	jg		L47
 	mov		rcx, 0
 	mov		[rbp-64], rcx
-	jmp		L40
-L39:
+	jmp		L48
+L47:
 	mov		rcx, 1
 	mov		[rbp-64], rcx
-L40:
+L48:
 	mov		rcx, [rbp-64]
 	mov		rdx, 0
 	cmp		rcx, rdx
-	je		L42
+	je		L50
 	mov		rcx, [rbp-56]
 	mov		rdx, 1
 	sub		rcx, rdx
 	mov		[rbp-72], rcx
 	mov		rcx, [rbp-72]
 	mov		[rbp-56], rcx
-	jmp		L41
-L42:
-	jmp		L36
-L44:
+	jmp		L49
+L50:
+	jmp		L44
+L52:
 	call	_readNum
 	mov		[rbp-80], rax
 	mov		rcx, [rbp-80]

@@ -19,6 +19,14 @@ class IR_Optimizer_CFG {
 
 /**
  * 删除没有使用的基本块
+ * 如:
+ * int f() {
+ *  int x = 10;
+ *  while(x > 0) x--;
+ *  return 18;
+ * }
+ * 优化为：
+ * int f() { reutnrn 18; }
  * @public
  * @param {Array} IR
  * @return 优化后的中间代码（控制流图的形式），及优化的次数
@@ -34,6 +42,7 @@ IR_Optimizer_CFG.prototype.eliminateUnusedBlock = function(IR) {
     //     blockMatrix: blockMatrix
     // }
 
+    // 检查是否存在无用跳转
     const blockNum = res.blocks.length;
     const hasVisited = new Array(blockNum);
     for(let i = 0; i < blockNum; i++) {
@@ -66,12 +75,75 @@ IR_Optimizer_CFG.prototype.eliminateUnusedBlock = function(IR) {
             count++;
         }
     }
-    const newIR = res.head.concat(newOtherIR);
-    const optimizedIR = GC.splitIR(newIR);
+    let newIR = res.head.concat(newOtherIR);
+    let optimizedIR = GC.splitIR(newIR);
+
+    // 接下来检查是否存在无用的计算
+    // 如果不管输入如何，最终的计算结果都一致且确定，则可以直接返回确定的计算结果
+    let callCount = 0;
+    for(let block of optimizedIR.blocks) {
+        if(callCount > 0) {
+            break;
+        }
+        for(let each of block) {
+            if(each[0] === 'call') {
+                callCount++;
+                break;
+            }
+        }
+    }
+
+    if(optimizedIR.blocks.length > 1 && callCount === 0) { // 如果函数内部用其他函数的调用，则不能直接删除基本块，否则会导致运行结果出错
+        const matrix = optimizedIR.blockMatrix;
+        const endBlock = new Set();
+        for(let i = 0; i < matrix.length; i++) {
+            const follows = matrix[i];
+            const cond = new Set([...follows]);
+            if(cond.size === 1 && cond.has(false)) {
+                endBlock.add(i);
+            }
+        }
+        // console.log(endBlock);
+        const returnSet = new Set();
+        for(let each of endBlock) {
+            returnSet.add(optimizedIR.blocks[each].slice(-1)[0][1]);
+        }
+        // console.log(returnSet);
+        if(returnSet.size === 1) {
+            const returnName = [...returnSet][0];
+            if(!isNaN(parseInt(returnName))) {
+                // 如果所有可能的返回结果都是确定且一致的，则说明其他基本块都是多余的
+                count++;
+                newIR = res.head;
+                newIR.push(['ret', returnName, '', '']);
+                optimizedIR = GC.splitIR(newIR);
+            } else if(returnName !== '') {
+                // 如果返回结果是变量（函数参数），而且在所有基本块中，这个变量都没有被重新赋值，则也可以直接返回
+                let returnAssignCount = 0;
+                for(let block of optimizedIR.blocks) {
+                    if(returnAssignCount > 0) {
+                        break;
+                    }
+                    for(let each of block) {
+                        if(each[3] === returnName) {
+                            returnAssignCount++;
+                            break;
+                        }
+                    }
+                }
+
+                if(returnAssignCount === 0) {
+                    count++;
+                    newIR = res.head;
+                    newIR.push(['ret', returnName, '', '']);
+                    optimizedIR = GC.splitIR(newIR);
+                }
+            }
+        }
+    }
+    
     optimizedIR.count = count; // 记录被消除掉的基本块的数量
 
-    // if(IR[0][3] === '_printNum')
-    //     console.log(blockMatrix);
     return optimizedIR;
 };
 
@@ -259,7 +331,7 @@ IR_Optimizer_CFG.prototype._replaceCommonExp = function(blockIR) {
  * @param {Array} blockIR
  * @return 优化后的中间代码，及优化的次数
  */
-IR_Optimizer_CFG.prototype._eliminateRedundantAssign = function(blockIR) {
+IR_Optimizer_CFG.prototype._eliminateRedundantAssignWithin = function(blockIR) {
     const newIR = new Array();
     blockIR.forEach(x => newIR.push(x));
     const blockLength = blockIR.length;
@@ -398,20 +470,146 @@ IR_Optimizer_CFG.prototype._eliminateRedundantJump = function(splitIR) {
 };
 
 /**
- * 删除无作用的各种操作
- * 如:
- * int f() {
- *  int x = 10;
- *  while(x > 0) x--;
- *  return 18;
- * }
- * 优化为：
- * int f() { reutnrn 18; }
+ * 分析基本块相互关系，删除无作用的语句
  * @private
  * @param {Array} splitIR
  * @return 优化后的中间代码，及优化的次数
  */
-IR_Optimizer_CFG.prototype._eliminateUselessIR = function(splitIR) {
+IR_Optimizer_CFG.prototype._eliminateRedundantIRBetween = function(splitIR) {
+    // splitIR: {
+    //     head: head,
+    //     otherIR: otherIR,
+    //     splitRange: splitRange,
+    //     blocks: blocks,
+    //     blockMatrix: blockMatrix
+    // }
+
+    // return {
+    //     IR: splitIR.head.concat(splitIR.otherIR),
+    //     count: 0
+    // };
+
+    const usedVar = new Map();
+    const assignVar = new Map();
+    const assignSet = new Set(['uminus', '+', '-', '*', '/', 'call', 'assign']); // 赋值和加减乘除等计算都包括赋值的动作
+    let count = 0;
+
+    const blockNum = splitIR.blocks.length;
+    for(let i = 0; i < blockNum; i++) {
+        usedVar.set(i, new Set());
+        assignVar.set(i, new Set());
+    }
+
+    // 计算每个基本块使用的变量及进行赋值的变量
+    // 使用的变量即作为操作数的变量
+    for(let i = 0; i < blockNum; i++) {
+        const block = splitIR.blocks[i];
+        for(let each of block) {
+            if(assignSet.has(each[0])) {
+                if(each[3] !== '') {
+                    assignVar.get(i).add(each[3]);
+                }
+            }
+
+            if(each[0] === 'call') {
+                continue;
+            }
+
+            if(each[1] !== '') {
+                usedVar.get(i).add(each[1]);
+            }
+            if(each[2] !== '') {
+                usedVar.get(i).add(each[2]);
+            }
+        }
+    }
+    // 至此得到每个基本块中，对于变量的赋值和使用情况
+    // console.log(usedVar);
+    // console.log(assignVar);
+
+    for(let i = 0; i < blockNum; i++) {
+        const followBlocks = new Array(blockNum); // 记录从某一个基本块开始，接下来可能访问的其他块
+        for(let j = 0; j < blockNum; j++) {
+            followBlocks[j] = false;
+        }
+        const checkList = new Array();
+        checkList.push(i);
+
+        while(true) {
+            if(checkList.length === 0) {
+                break;
+            }
+
+            const nowCheck = checkList.shift();
+            for(let j = 0; j < blockNum; j++) {
+                if(splitIR.blockMatrix[nowCheck][j] && 
+                   !followBlocks[j] && 
+                   checkList.indexOf(j) === -1) {
+                    checkList.push(j);
+                    followBlocks[j] = true;
+                }
+            }
+        } // 至此，找到了从某个基本块开始，有可能能访问的所有基本块
+        // console.log(followBlocks);
+
+        let followUsed = new Set(); // 记录后续基本块有可能使用的
+        for(let j = 0; j < blockNum; j++) {
+            if(followBlocks[j]) {
+                followUsed = new Set([...followUsed, ...usedVar.get(j)]);
+            }
+        }  // 至此，找到了某基本块之后可能访问到的基本块中使用到的变量（不完整，还需要考虑本块内部使用的情况）
+        
+        const deletedAssign = new Set([...assignVar.get(i)].filter(x => !followUsed.has(x))); // 找出应该被删除的赋值操作
+        // console.log(deletedAssign);
+
+        for(let eachDel of deletedAssign) {
+            const block = splitIR.blocks[i];
+            for(let j = block.length - 1; j >= 0; j--) { // 逆向遍历
+                if(block[j][1] === eachDel || block[j][2] === eachDel) {
+                    break; // 如果在本块内部仍有使用这个变量，则不能删除
+                }
+
+                if(!assignSet.has(block[j][0])) {
+                    continue;
+                }
+
+                if(block[j][3] !== eachDel) {
+                    continue;
+                }
+
+                // 至此，找到了需要删除无用赋值/加减乘除等计算
+                count++;
+                if(block[j][0] === 'call') {
+                    splitIR.blocks[i][j][3] = ''; // 保留函数调用，但删除将函数调用结果对变量进行的赋值
+                } else {
+                    // console.log(splitIR.blocks[i][j]);
+                    splitIR.blocks[i].splice(j, 1); // 删除这句中间代码
+                }
+                break;
+            }
+        }
+    }
+
+    let newOtherIR = new Array();
+    for(let each of splitIR.blocks) {
+        newOtherIR = newOtherIR.concat(each);
+    }
+
+    return {
+        IR: splitIR.head.concat(newOtherIR),
+        count: count
+    };
+};
+
+/**
+ * 分析基本块相互关系，对变量进行替换
+ * 进行块间的常量传播和复写传播
+ * 找到块间的公共子表达式，进行优化
+ * @private
+ * @param {Array} splitIR
+ * @return 优化后的中间代码，及优化的次数
+ */
+IR_Optimizer_CFG.prototype._replaceVarBetween = function(splitIR) {
     // splitIR: {
     //     head: head,
     //     otherIR: otherIR,
@@ -424,6 +622,57 @@ IR_Optimizer_CFG.prototype._eliminateUselessIR = function(splitIR) {
         IR: splitIR.head.concat(splitIR.otherIR),
         count: 0
     };
+
+    const usedVar = new Map();
+    const assignVar = new Map();
+    const assignSet = new Set(['uminus', '+', '-', '*', '/', 'call', 'assign']); // 赋值和加减乘除等计算都包括赋值的动作
+    let count = 0;
+
+    const blockNum = splitIR.blocks.length;
+    for(let i = 0; i < blockNum; i++) {
+        usedVar.set(i, new Set());
+        assignVar.set(i, new Set());
+    }
+
+    // 计算每个基本块使用的变量及进行赋值的变量
+    // 使用的变量即作为操作数的变量
+    for(let i = 0; i < blockNum; i++) {
+        const block = splitIR.blocks[i];
+        for(let each of block) {
+            if(assignSet.has(each[0])) {
+                if(each[3] !== '') {
+                    assignVar.get(i).add(each[3]);
+                }
+            }
+
+            if(each[0] === 'call') {
+                continue;
+            }
+
+            if(each[1] !== '') {
+                usedVar.get(i).add(each[1]);
+            }
+            if(each[2] !== '') {
+                usedVar.get(i).add(each[2]);
+            }
+        }
+    }
+    // 至此得到每个基本块中，对于变量的赋值和使用情况
+
+
+    for(let i = 0; i < blockNum; i++) {
+        const block = splitIR.blocks[i];
+        const assignVarInBlock = assignVar.get(i);
+        for(let eachVar of assignVarInBlock) {
+            for(let j = block.length - 1; j >= 0; j--) {
+                if(block[j][3] !== eachVar) {
+                    continue;
+                }
+                // 定位到相关语句
+                // console.log(block[j]);
+            }
+        }        
+    }
 };
 
 /**
@@ -447,7 +696,7 @@ IR_Optimizer_CFG.prototype.optimizeBlocks = function(splitIR) {
         let result = this._replaceCommonExp(each);
         count += result.count;
 
-        result = this._eliminateRedundantAssign(result.IR);
+        result = this._eliminateRedundantAssignWithin(result.IR);
         count += result.count;
 
         newOtherIR = newOtherIR.concat(result.IR);
@@ -459,7 +708,12 @@ IR_Optimizer_CFG.prototype.optimizeBlocks = function(splitIR) {
     optimizedIR = GC.splitIR(optimizedIRRes.IR);
     count += optimizedIRRes.count;
 
-    optimizedIRRes = this._eliminateUselessIR(optimizedIR); 
+    optimizedIRRes = this._eliminateRedundantIRBetween(optimizedIR); 
+
+    optimizedIR = GC.splitIR(optimizedIRRes.IR);
+    count += optimizedIRRes.count;
+
+    optimizedIRRes = this._replaceVarBetween(optimizedIR); 
 
     optimizedIR = GC.splitIR(optimizedIRRes.IR);
     count += optimizedIRRes.count;
@@ -533,7 +787,7 @@ IR_Optimizer_CFG.prototype.optimize = function(IR) {
         let i = 1;
         let fparamCount = 0;
         let flocalCount = 0;
-        while(true) {
+        while(i < each.length) {
             if(each[i][0] === 'fparam') {
                 fparamCount++;
             } else if(each[i][0] === 'flocal') {

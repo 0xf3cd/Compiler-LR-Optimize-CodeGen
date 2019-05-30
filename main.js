@@ -1,7 +1,9 @@
 const Parser = require('./Parser.js');
 const IR_Gen = require('./IR_Generator.js');
+const Gen_CFG = require('./Gen_CFG.js'); 
 const IR_Optimizer_Global = require('./IR_Optimizer_Global.js');
 const IR_Optimizer_CFG = require('./IR_Optimizer_CFG.js');
+const Reg_Allocator = require('./Reg_Allocator.js');
 const CodeGen = require('./CodeGen.js');
 const fs = require('fs');
 const child_process = require('child_process');
@@ -13,11 +15,13 @@ const nasmFileDir = './Result/Example.asm';
 const oFileDir = nasmFileDir.substring(0, nasmFileDir.length-4) + '.o';
 const exeFileDir = './Result/Example';
 
-let P = new Parser(); // 进行语法分析
-let I = new IR_Gen(); // 进行语义分析及中间代码生成
-let IOG = new IR_Optimizer_Global(); // 对中间代码进行常量折叠、常量传播、复写传播、部分死代码消除等优化，也进行一部分窥孔优化
-let IOC = new IR_Optimizer_CFG(); // 分析控制流图进行中间代码优化
-let CG = new CodeGen(); // 由中间代码生成目标代码
+const P = new Parser(); // 进行语法分析
+const I = new IR_Gen(); // 进行语义分析及中间代码生成
+const GC = new Gen_CFG();
+const IOG = new IR_Optimizer_Global(); // 对中间代码进行常量折叠、常量传播、复写传播、部分死代码消除等优化，也进行一部分窥孔优化
+const IOC = new IR_Optimizer_CFG(); // 分析控制流图进行中间代码优化
+const RA = new Reg_Allocator(); // 进行寄存器分配
+const CG = new CodeGen(); // 由中间代码生成目标代码
 
 P.setGrammar('./Grammar/Grammar.txt');
 P.setSource(srcFileDir);
@@ -43,37 +47,46 @@ while(true) {
 // let t = P.getParseTree();
 // console.log(t); //S
 
-const IR = I.getIR();
+let IR = I.getIR();
 // console.log(IR.funcs);
 
-let optimizedIR_Global = IOG.optimize(IR);
-// console.log(optimizedIR_Global.global);
-console.log(optimizedIR_Global.count);
+let optimizedIR_Global = IR; // = IOG.optimize(IR);
+let optimizedIR_CFG; // = IOC.optimize(optimizedIR_Global);
 
-let optimizedIR_CFG = IOC.optimize(optimizedIR_Global);
-console.log(optimizedIR_CFG.count);
+while(true) {
+    optimizedIR_CFG = IOC.optimize(optimizedIR_Global);
+    optimizedIR_Global = IOG.optimize(optimizedIR_CFG);
 
-optimizedIR_Global = IOG.optimize(optimizedIR_CFG);
-console.log(optimizedIR_Global.count);
+    const count = optimizedIR_Global.count + optimizedIR_CFG.count;
+    console.log(count);
+    if(count === 0) {
+        IR = optimizedIR_Global;
+        break;
+    }
+}
 
-optimizedIR_CFG = IOC.optimize(optimizedIR_Global);
-console.log(optimizedIR_CFG.count);
-
-optimizedIR_Global = IOG.optimize(optimizedIR_CFG);
-console.log(optimizedIR_Global.count);
-
-optimizedIR_CFG = IOC.optimize(optimizedIR_Global);
-console.log(optimizedIR_CFG.count);
-
-console.log(IR.funcs[0]);
-// console.log(optimizedIR_Global.funcs[0]);
-console.log(optimizedIR_CFG.funcs[0]);
+// console.log(IR.funcs[4]);
+// console.log(optimizedIR_Global.funcs[1]);
+// console.log(optimizedIR_CFG.funcs[1]);
 
 // console.log(IR.funcVarNum);
 // console.log(optimizedIR_Global.funcVarNum);
 // console.log(optimizedIR_CFG.funcVarNum);
 
-CG.initialize(optimizedIR_CFG);
+// const splitIR = GC.splitIR(optimizedIR_Global.funcs[0]);
+// console.log(splitIR);
+// RA._calcLiveOfBlockIR([['assign', 'a', '', 'x'], ['*', '13', 'a', 'd'], ['ret', '1', '', '']], new Set());
+// RA._getLiveInfo(IR.funcs[0]);
+const liveInfo = RA._getLiveInfo([
+    ['assign', '17', '', 'y'],
+    ['+', 'x', 'y', 'a'],
+    ['assign', '13', '', 'x'],
+    ['+', 'x', 'a', 'b'],
+    ['ret', 'b', '', '']
+]);
+console.log(liveInfo);
+
+CG.initialize(IR);
 CG.translate();
 const nasm = CG.showNasm(); // 汇编代码
 // console.log(nasm);
