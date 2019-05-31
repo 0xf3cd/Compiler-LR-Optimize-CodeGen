@@ -203,10 +203,10 @@ builtInFuncs.set('_read', [
 
 
 /**
- * 以下的函数分别对应 58 条产生式
+ * 以下的函数分别对应 62 条产生式
  * 为规约每一条产生式时，需要进行的语义动作
  * 由于 js 的语法缺陷，如果直接将这些函数成为成员变量，则会有 this 指针指向混乱的情况
- * 所以单列成 58 个函数，作为中间代码生成器类中成员 _allFuncs 数组的成员
+ * 所以单列成 62 个函数，作为中间代码生成器类中成员 _allFuncs 数组的成员
  * @param right {Array.<Node>} 产生式右部
  * @param VST {VarTable} 符号表
  * @param FST {FuncTable} 函数表

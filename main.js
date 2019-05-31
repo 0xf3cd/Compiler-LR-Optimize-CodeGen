@@ -5,6 +5,7 @@ const IR_Optimizer_Global = require('./IR_Optimizer_Global.js');
 const IR_Optimizer_CFG = require('./IR_Optimizer_CFG.js');
 const Reg_Allocator = require('./Reg_Allocator.js');
 const CodeGen = require('./CodeGen.js');
+const ASM_Peephole_Optimizer = require('./ASM_Peephole_Optimizer.js');
 const fs = require('fs');
 const child_process = require('child_process');
 const spawnSync = child_process.spawnSync;
@@ -22,12 +23,13 @@ const IOG = new IR_Optimizer_Global(); // 对中间代码进行常量折叠、�
 const IOC = new IR_Optimizer_CFG(); // 分析控制流图进行中间代码优化
 const RA = new Reg_Allocator(); // 进行寄存器分配
 const CG = new CodeGen(); // 由中间代码生成目标代码
+const APO = new ASM_Peephole_Optimizer(); // 对目标代码进行窥孔优化
 
 P.setGrammar('./Grammar/Grammar.txt');
 P.setSource(srcFileDir);
 P.initialize();
 
-I.setProdNoFilePath('Grammar/Production-No.txt');
+I.setProdNoFilePath('./Grammar/Production-No.txt');
 I.readProdNoFile();
 
 while(true) {
@@ -52,20 +54,20 @@ let IR = I.getIR();
 
 let optimizedIR_Global = IR; // = IOG.optimize(IR);
 let optimizedIR_CFG; // = IOC.optimize(optimizedIR_Global);
-
+let optimizedIR;
 while(true) {
     optimizedIR_CFG = IOC.optimize(optimizedIR_Global);
     optimizedIR_Global = IOG.optimize(optimizedIR_CFG);
 
     const count = optimizedIR_Global.count + optimizedIR_CFG.count;
-    console.log(count);
+    // console.log(count);
     if(count === 0) {
-        IR = optimizedIR_Global;
+        optimizedIR = optimizedIR_Global;
         break;
     }
 }
 
-// console.log(IR.funcs[4]);
+// console.log(IR.funcs[1]);
 // console.log(optimizedIR_Global.funcs[1]);
 // console.log(optimizedIR_CFG.funcs[1]);
 
@@ -73,17 +75,15 @@ while(true) {
 // console.log(optimizedIR_Global.funcVarNum);
 // console.log(optimizedIR_CFG.funcVarNum);
 
-// const splitIR = GC.splitIR(optimizedIR_Global.funcs[0]);
-// console.log(splitIR);
-// RA._calcLiveOfBlockIR([['assign', 'a', '', 'x'], ['*', '13', 'a', 'd'], ['ret', '1', '', '']], new Set());
-// const allocRes = RA.allocateRegForPartIR(IR.funcs[6]);
-const allocRes = RA.allocateReg(IR);
-console.log(allocRes);
+const allocRes = RA.allocateReg(optimizedIR);
+// console.log(allocRes.get('_main'));
 
-CG.initialize(IR, allocRes);
+CG.initialize(optimizedIR, allocRes);
 CG.translate();
 const nasm = CG.showNasm(); // 汇编代码
 // console.log(nasm);
+
+const newNasm = APO.splitASM(nasm);
 
 fs.writeFileSync(nasmFileDir, nasm);
 spawnSync('nasm', ['-f macho64', nasmFileDir], {});

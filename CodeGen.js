@@ -1,3 +1,6 @@
+const Gen_CFG = require('./Gen_CFG.js'); 
+const GC = new Gen_CFG();
+
 const globalVars = new Set();
 let fparamVars = new Map();
 let flocalVars = new Map();
@@ -443,12 +446,426 @@ CodeGen.prototype._translateGlobal = function() {
     // nasm.push('');
 };
 
+const writeBack = (reg, varName) => {
+    const varType = getVarType(varName);
+    const wbNasm = new Array();
+
+    if(varType.type === 'fparam') {   
+        wbNasm.push(`\tmov\t\t[rbp+${8+8*varType.address}], ${reg}`);
+    } else if(varType.type === 'flocal') {
+        wbNasm.push(`\tmov\t\t[rbp-${8*varType.address}], ${reg}`);
+    } else {
+        if(isNaN(parseInt(varName))) {
+            wbNasm.push(`\tmov\t\trbx, ${varName}`);
+            wbNasm.push(`\tmov\t\t[rbx], ${reg}`);
+        }
+    }
+
+    if(!varName) {
+        throw new Error(1);
+    }
+
+    return wbNasm;
+};
+
+/**
+ * 将一个基本块的中间代码翻译成汇编代码（NASM 格式）
+ * 考虑寄存器分配
+ * @public
+ * @return {Array}
+ */
+CodeGen.prototype._translateBlockWithRegAlloc = function(blockIR, alloc, startLive, endLive) {
+    let nasm = new Array();
+    const regSet = new Set(['rcx', 'rdx', 'r8', 'r9', 'r10', 'r11', 'r12', 'r13', 'r14', 'r15']);
+    let regMap = new Map(); // 记录每个寄存器中储存的变量情况
+    for(let r of regSet) {
+        regMap.set(r, '');
+    }
+    for(let v of startLive) {
+        regMap.set(alloc.get(v), v);
+    } // 至此，regMap 储存了进入这个 block 时，可以确定的某些寄存器储存的值
+
+    for(let IR of blockIR) {
+        const [p1, p2, p3, p4] = IR;
+        const varType2 = getVarType(p2);
+        const varType3 = getVarType(p3);
+        const varType4 = getVarType(p4);
+        let v2, v3, v4;
+
+        const op2Nasm = new Array();
+        const op3Nasm = new Array();
+        const resNasm = new Array();
+        let wb2 = new Array();
+        let wb3 = new Array();
+        let wbRes = new Array();
+
+        v2 = 'rbx';
+        if(varType2.type === 'fparam') {
+            if(alloc.has(p2)) {
+                v2 = alloc.get(p2); // 这个变量分配的寄存器
+            }
+
+            if(regMap.get(v2) !== p2 && v2 !== 'rbx' && regMap.get(v2) !== '') { // 如果这个寄存器中储存的不是这个变量
+                wb2 = writeBack(v2, regMap.get(v2));
+                op2Nasm.push(`\tmov\t\t${v2}, [rbp+${8+8*varType2.address}]`);
+                regMap.set(v2, p2);
+            }
+        } else if(varType2.type === 'flocal') {
+            if(alloc.has(p2)) {
+                v2 = alloc.get(p2); // 这个变量分配的寄存器
+            }
+
+            if(regMap.get(v2) !== p2 && v2 !== 'rbx' && regMap.get(v2) !== '') { // 如果这个寄存器中储存的不是这个变量
+                wb2 = writeBack(v2, regMap.get(v2));
+                op2Nasm.push(`\tmov\t\t${v2}, [rbp-${8*varType2.address}]`);
+                regMap.set(v2, p2);
+            }
+        } else {
+            if(isNaN(parseInt(p2))) {
+                if(alloc.has(p2)) {
+                    v2 = alloc.get(p2); // 这个变量分配的寄存器
+                }
+    
+                if(regMap.get(v2) !== p2 && v2 !== 'rbx' && regMap.get(v2) !== '') { // 如果这个寄存器中储存的不是这个变量
+                    wb2 = writeBack(v2, regMap.get(v2));
+                    op2Nasm.push(`\tmov\t\trbx, ${p2}`);
+                    op2Nasm.push(`\tmov\t\t${v2}, [rbx]`);
+                    regMap.set(v2, p2);
+                }
+            } else {
+                v2 = p2;
+            }
+            // f2 = true;
+        }
+
+        v3 = 'rbx';
+        if(varType3.type === 'fparam') {
+            if(alloc.has(p3)) {
+                v3 = alloc.get(p3); // 这个变量分配的寄存器
+            }
+
+            if(regMap.get(v3) !== p3 && v3 !== 'rbx' && regMap.get(v3) !== '') { // 如果这个寄存器中储存的不是这个变量
+                wb3 = writeBack(v3, regMap.get(v3));
+                op3Nasm.push(`\tmov\t\t${v3}, [rbp+${8+8*varType3.address}]`);
+                regMap.set(v3, p3);
+            }
+        } else if(varType3.type === 'flocal') {
+            if(alloc.has(p3)) {
+                v3 = alloc.get(p3); // 这个变量分配的寄存器
+            }
+
+            if(regMap.get(v3) !== p3 && v3 !== 'rbx' && regMap.get(v3) !== '') { // 如果这个寄存器中储存的不是这个变量
+                wb3 = writeBack(v3, regMap.get(v3));
+                op3Nasm.push(`\tmov\t\t${v3}, [rbp-${8*varType3.address}]`);
+                regMap.set(v3, p3);
+            }
+        } else {
+            if(isNaN(parseInt(p3))) {
+                if(alloc.has(p3)) {
+                    v3 = alloc.get(p3); // 这个变量分配的寄存器
+                }
+    
+                if(regMap.get(v3) !== p3 && v3 !== 'rbx' && regMap.get(v3) !== '') { // 如果这个寄存器中储存的不是这个变量
+                    wb3 = writeBack(v3, regMap.get(v3));
+                    op3Nasm.push(`\tmov\t\trbx, ${p3}`);
+                    op3Nasm.push(`\tmov\t\t${v3}, [rbx]`);
+                    regMap.set(v3, p3);
+                }
+            } else {
+                v3 = p3;
+            }
+            // f3 = true;
+        }
+
+        v4 = 'rbx';
+        if(varType4.type === 'fparam') {
+            if(alloc.has(p4)) {
+                v4 = alloc.get(p4); // 这个变量分配的寄存器
+            }
+
+            if(regMap.get(v4) !== p4) { // 如果这个寄存器中储存的不是这个变量
+                wbRes = writeBack(v4, regMap.get(v4));
+                // op4Nasm.push(`\tmov\t\t${v4}, [rbp+${8+8*varType4.address}]`);
+                regMap.set(v4, p4);
+            }
+        } else if(varType4.type === 'flocal') {
+            if(alloc.has(p4)) {
+                v4 = alloc.get(p4); // 这个变量分配的寄存器
+            }
+
+            if(regMap.get(v4) !== p4 && v4 !== 'rbx' && regMap.get(v4) !== '') { // 如果这个寄存器中储存的不是这个变量
+                wbRes = writeBack(v4, regMap.get(v4));
+                // op4Nasm.push(`\tmov\t\t${v4}, [rbp-${8*varType4.address}]`);
+                regMap.set(v4, p4);
+            }
+        } else {
+            if(isNaN(parseInt(p4))) {
+                if(alloc.has(p4)) {
+                    v4 = alloc.get(p4); // 这个变量分配的寄存器
+                }
+    
+                if(regMap.get(v4) !== p4 && v4 !== 'rbx' && regMap.get(v4) !== '') { // 如果这个寄存器中储存的不是这个变量
+                    wbRes = writeBack(v4, regMap.get(v4));
+                    // op4Nasm.push(`\tmov\t\trbx, ${p4}`);
+                    // op4Nasm.push(`\tmov\t\t${v4}, [rbx]`);
+                    regMap.set(v4, p4);
+                }
+            } else {
+                throw new Error('check CodeGen.js line 587');
+            }
+        }
+        
+        // 此时 v2, v3, v4 中已经存放好了可以使用的寄存器
+        if(p1 === 'uminus') {
+            nasm = nasm.concat(wb2);
+            nasm = nasm.concat(op2Nasm);
+            
+            if(v2 === v4) {
+                nasm = nasm.concat(wbRes);
+                nasm.push(`\tmov\t\t${v4}, ${v2}`);
+                nasm.push(`\tneg\t\t${v4}`);
+            } else {
+                nasm = nasm.concat(wbRes);
+                nasm.push(`\tmov\t\t${v4}, ${v2}`);
+                nasm.push(`\tneg\t\t${v4}`);
+            }
+        } else if(p1 === '+') {
+            nasm = nasm.concat(wb2);
+            nasm = nasm.concat(op2Nasm);
+
+            nasm = nasm.concat(wb3);
+            nasm = nasm.concat(op3Nasm);
+            
+            nasm = nasm.concat(wbRes);
+            nasm.push(`\tmov\t\t${v4}, ${v2}`);
+            nasm.push(`\tadd\t\t${v4}, ${v3}`);
+        } else if(p1 === '-') {
+            nasm = nasm.concat(wb2);
+            nasm = nasm.concat(op2Nasm);
+
+            nasm = nasm.concat(wb3);
+            nasm = nasm.concat(op3Nasm);
+            
+            nasm = nasm.concat(wbRes);
+            nasm.push(`\tmov\t\t${v4}, ${v2}`);
+            nasm.push(`\tsub\t\t${v4}, ${v3}`);
+        } else if(p1 === '*') {
+            nasm = nasm.concat(wb2);
+            nasm = nasm.concat(op2Nasm);
+
+            nasm = nasm.concat(wb3);
+            nasm = nasm.concat(op3Nasm);
+            
+            nasm = nasm.concat(wbRes);
+            nasm.push(`\tmov\t\t${v4}, ${v2}`);
+            nasm.push(`\timul\t${v4}, ${v3}`);
+        } else if(p1 === '/') {
+            nasm = nasm.concat(wb2);
+            nasm = nasm.concat(op2Nasm);
+
+            nasm = nasm.concat(wb3);
+            nasm = nasm.concat(op3Nasm);
+
+            nasm = nasm.concat(wbRes);
+
+            // if(f2) {
+            //     nasm.push(`\tmov\t\trbx, ${v2}`);   // rbx 变量地址
+            //     nasm.push(`\tmov\t\trax, [rbx]`);   // rdx:rax 变量1的值
+            // } else {
+            //     nasm.push(`\tmov\t\trax, ${v2}`);   // rdx:rax 变量1的值
+            // }
+            nasm.push(`\tpush\trax`);
+            nasm.push(`\tmov\t\trax, ${v2}`);   // rdx:rax 变量1的值
+            nasm.push(`\tpush\trdx`);
+            nasm.push(`\tmov\t\trdx, rax`);     // rdx <- rax
+            nasm.push(`\tsar\t\trdx, 32`);      // 算数右移32位，保持符号位
+
+            nasm.push(`\tpush\trcx`);            
+            nasm.push(`\tmov\t\trcx, ${v3}`);     // rdx <- rax
+            nasm.push(`\tidiv\trcx`);           // rax <- rdx:rax / rcx
+            nasm.push(`\tpop\t\trcx`);
+
+            nasm.push(`\tmov\t\t${v4}, rax`);
+            nasm.push(`\tpop\t\trdx`);
+            nasm.push(`\tpop\t\trax`);
+        } else if(p1 === 'jl') {
+            nasm = nasm.concat(wb2);
+            nasm = nasm.concat(op2Nasm);
+
+            nasm = nasm.concat(wb3);
+            nasm = nasm.concat(op3Nasm);
+
+            nasm.push(`\tcmp\t\t${v2}, ${v3}`);     // 比较 rcx 和 rdx
+            nasm.push(`\tjl\t\t${p4}`);         // rbx 目标变量地址
+        } else if(p1 === 'jle') {
+            nasm = nasm.concat(wb2);
+            nasm = nasm.concat(op2Nasm);
+
+            nasm = nasm.concat(wb3);
+            nasm = nasm.concat(op3Nasm);
+
+            nasm.push(`\tcmp\t\t${v2}, ${v3}`);     // 比较 rcx 和 rdx
+            nasm.push(`\tjle\t\t${p4}`);        // rbx 目标变量地址
+        } else if(p1 === 'jg') {
+            nasm = nasm.concat(wb2);
+            nasm = nasm.concat(op2Nasm);
+
+            nasm = nasm.concat(wb3);
+            nasm = nasm.concat(op3Nasm);
+
+            nasm.push(`\tcmp\t\t${v2}, ${v3}`);     // 比较 rcx 和 rdx
+            nasm.push(`\tjg\t\t${p4}`);         // rbx 目标变量地址
+        } else if(p1 === 'jge') {
+            nasm = nasm.concat(wb2);
+            nasm = nasm.concat(op2Nasm);
+
+            nasm = nasm.concat(wb3);
+            nasm = nasm.concat(op3Nasm);
+
+            nasm.push(`\tcmp\t\t${v2}, ${v3}`);     // 比较 rcx 和 rdx
+            nasm.push(`\tjge\t\t${p4}`);        // rbx 目标变量地址
+        } else if(p1 === 'je') {
+            nasm = nasm.concat(wb2);
+            nasm = nasm.concat(op2Nasm);
+
+            nasm = nasm.concat(wb3);
+            nasm = nasm.concat(op3Nasm);
+
+            nasm.push(`\tcmp\t\t${v2}, ${v3}`);     // 比较 rcx 和 rdx
+            nasm.push(`\tje\t\t${p4}`);         // rbx 目标变量地址
+        } else if(p1 === 'jne') {
+            nasm = nasm.concat(wb2);
+            nasm = nasm.concat(op2Nasm);
+
+            nasm = nasm.concat(wb3);
+            nasm = nasm.concat(op3Nasm);
+
+            nasm.push(`\tcmp\t\t${v2}, ${v3}`);     // 比较 rcx 和 rdx
+            nasm.push(`\tjne\t\t${p4}`);        // rbx 目标变量地址
+        } else if(p1 === 'goto') {
+            nasm.push(`\tjmp\t\t${p4}`);        // rbx 目标变量地址
+        } else if(p1 === 'assign') {
+            nasm = nasm.concat(wb2);
+            nasm = nasm.concat(op2Nasm);
+            
+            if(v2 === v4) {
+                nasm = nasm.concat(wbRes);
+                nasm.push(`\tmov\t\t${v4}, ${v2}`);
+            } else {
+                nasm = nasm.concat(wbRes);
+                nasm.push(`\tmov\t\t${v4}, ${v2}`);
+            }
+        } else if(p1 === 'param') {
+            nasm = nasm.concat(wb2);
+            nasm = nasm.concat(op2Nasm);
+
+            nasm.push(`\tpush\tqword\t${v2}`);    // 压栈变量
+        } else if(p1 === 'call') {
+            nasm.push(`\tcall\t${p2}`);         // 压栈变量
+            // console.log(p2, this._funcVarNum.get(p2))
+            if(this._funcVarNum.get(p2)[0] !== 0) {
+                nasm.push(`\tadd\t\trsp, ${8*this._funcVarNum.get(p2)[0]}`);   // rbx 变量地址
+            }
+
+            if(p4 !== '') {
+                nasm = nasm.concat(wbRes);
+                nasm.push(`\tmov\t\t${v4}, rax`);
+            }
+            
+        } else if(p1 === 'ret') {
+            nasm = nasm.concat(wb2);
+            nasm = nasm.concat(op2Nasm);
+            nasm.push(`\tmov\t\trax, ${v2}`);
+
+            nasm.push(`\tmov\t\trsp, rbp`);
+            nasm.push(`\tpop\t\trbp`);
+            nasm.push(`\tret`);                 // ret
+        } else if(p1 === 'func') {
+            nasm.push(`${p4}:`);                // function
+        } else if(p1 === 'label') {
+            nasm.push(`${p4}:`);                // label
+        }
+    }
+
+    for(let v of endLive) {
+        const r = alloc.get(v);
+        if(regMap.get(r) !== v) {
+            nasm = nasm.concat(writeBack(r, v));
+        }
+    }
+
+    return nasm;
+};
+
 /**
  * 将函数的中间代码翻译成汇编代码（NASM 格式）
  * @public
  * @return {Array}
  */
 CodeGen.prototype._translateFunc = function() {
+    if(!this._funcs) {
+        throw new Error('CodeGen._global is empty');
+    }
+
+    // for(let IR of this._funcs) {
+    //     const allocRes = this._allocRes.get(IR[0][3]);
+    //     const allocatedMap = allocRes.allocated;
+    //     const unallocatedSet = allocRes.unallocated;
+    //     const startLiveInfo = allocRes.startLiveSet;
+    //     const endLiveInfo = allocRes.endLiveSet;
+    //     const splitIR = GC.splitIR(IR);
+    //     // console.log(startLiveInfo.length);
+    //     // console.log(endLiveInfo.length);
+    //     // console.log(splitIR.blocks.length);
+
+
+    //     let funcNasm = new Array();
+    //     funcNasm = funcNasm.concat(this._translateOneIR(IR[0]));
+
+    //     funcNasm.push(`\tpush\trbp`);
+    //     funcNasm.push(`\tmov\t\trbp, rsp`);
+    //     funcNasm.push(`\tsub\t\trsp, ${8*this._funcVarNum.get(IR[0][3])[1]}`);
+
+    //     fparamVars = new Map();
+    //     flocalVars = new Map();
+
+    //     let fparamCount = 1;
+    //     let flocalCount = 1;
+
+    //     let i = 1;
+    //     while(i < IR.length) {
+    //         eachIR = IR[i];
+    //         if(eachIR[0] !== 'fparam') {
+    //             break;
+    //         }
+
+    //         fparamVars.set(eachIR[1], fparamCount);
+    //         fparamCount++;
+        
+    //         i++;
+    //     }
+
+    //     while(i < IR.length) {
+    //         eachIR = IR[i];
+    //         if(eachIR[0] !== 'flocal') {
+    //             break;
+    //         }
+
+    //         flocalVars.set(eachIR[1], flocalCount);
+    //         flocalCount++;
+        
+    //         i++;
+    //     }
+
+    //     for(let i = 0; i < splitIR.blocks.length; i++) {
+    //         const blockIR = splitIR.blocks[i];
+    //         const tempNasm = this._translateBlockWithRegAlloc(blockIR, allocatedMap, startLiveInfo[i], endLiveInfo[i]);
+    //         funcNasm = funcNasm.concat(tempNasm);
+    //     }
+
+    //     this._text.push(funcNasm);
+    // }
+
     if(!this._funcs) {
         throw new Error('CodeGen._global is empty');
     }

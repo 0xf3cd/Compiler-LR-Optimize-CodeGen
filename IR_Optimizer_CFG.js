@@ -590,6 +590,21 @@ IR_Optimizer_CFG.prototype._eliminateRedundantIRBetween = function(splitIR) {
         }
     }
 
+    for(let i = 0; i < blockNum; i++) {
+        const block = splitIR.blocks[i];
+        for(let j = 0; j < block.length - 1; j++) {
+            const IR1 = block[j];
+            const IR2 = block[j+1];
+            if((IR1[0] === IR2[0]) &&
+               (IR1[1] === IR2[1]) &&
+               (IR1[2] === IR2[2]) &&
+               (IR1[3] === IR2[3])) {
+                count++;
+                splitIR.blocks[i].splice(j, 1); // 删除这句中间代码
+            }
+        }
+    }
+
     let newOtherIR = new Array();
     for(let each of splitIR.blocks) {
         newOtherIR = newOtherIR.concat(each);

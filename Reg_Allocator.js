@@ -181,7 +181,11 @@ Reg_Allocator.prototype._getLiveInfo = function(partIR) {
     // console.log(liveInfoSet);
     // console.log(startLiveSet);
     // console.log(endLiveSet);
-    return liveInfoSet;
+    return {
+        liveInfoSet: liveInfoSet,
+        startLiveSet: startLiveSet,
+        endLiveSet: endLiveSet
+    };
 };
 
 /**
@@ -330,7 +334,56 @@ Reg_Allocator.prototype.allocateRegForPartIR = function(partIR) {
     // }
 
     const liveInfo = this._getLiveInfo(partIR);
-    return this._graphColoration(liveInfo, varSet);
+    const allocRes = this._graphColoration(liveInfo.liveInfoSet, varSet);
+    allocRes.startLiveSet = liveInfo.startLiveSet;
+    allocRes.endLiveSet = liveInfo.endLiveSet;
+
+    for(let [k, v] of allocRes.allocated) {
+        switch(v) {
+            case 1: {
+                allocRes.allocated.set(k, 'rcx');
+                break;
+            }
+            case 2: {
+                allocRes.allocated.set(k, 'rdx');
+                break;
+            }
+            case 3: {
+                allocRes.allocated.set(k, 'r8');
+                break;
+            }
+            case 4: {
+                allocRes.allocated.set(k, 'r9');
+                break;
+            }
+            case 5: {
+                allocRes.allocated.set(k, 'r10');
+                break;
+            }
+            case 6: {
+                allocRes.allocated.set(k, 'r11');
+                break;
+            }
+            case 7: {
+                allocRes.allocated.set(k, 'r12');
+                break;
+            }
+            case 8: {
+                allocRes.allocated.set(k, 'r13');
+                break;
+            }
+            case 9: {
+                allocRes.allocated.set(k, 'r14');
+                break;
+            }
+            case 10: {
+                allocRes.allocated.set(k, 'r15');
+                break;
+            }
+        }
+    }
+
+    return allocRes;
 };
 
 /**
