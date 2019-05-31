@@ -62,7 +62,6 @@ L1:
 	mov		rcx, [rbp+16]
 	neg		rcx
 	mov		[rbp-16], rcx
-	mov		rcx, [rbp-16]
 	push	qword	rcx
 	call	_printNum
 	add		rsp, 8
@@ -89,7 +88,6 @@ L4:
 	mov		rdx, 48
 	add		rcx, rdx
 	mov		[rbp-32], rcx
-	mov		rcx, [rbp-32]
 	push	qword	rcx
 	call	_print
 	add		rsp, 8
@@ -150,7 +148,6 @@ L10:
 	mov		rdx, 48
 	add		rcx, rdx
 	mov		[rbp-80], rcx
-	mov		rcx, [rbp-80]
 	push	qword	rcx
 	call	_print
 	add		rsp, 8
@@ -215,7 +212,6 @@ L16:
 	mov		rdx, [rbp-16]
 	imul	rcx, rdx
 	mov		[rbp-72], rcx
-	mov		rcx, [rbp-72]
 	mov		[rbp-16], rcx
 	mov		rcx, [rbp-40]
 	mov		rdx, 48
@@ -225,19 +221,16 @@ L16:
 	mov		rdx, [rbp-80]
 	add		rcx, rdx
 	mov		[rbp-88], rcx
-	mov		rcx, [rbp-88]
 	mov		[rbp-16], rcx
 	mov		rcx, 10
 	mov		rdx, [rbp-24]
 	imul	rcx, rdx
 	mov		[rbp-96], rcx
-	mov		rcx, [rbp-96]
 	mov		[rbp-24], rcx
 	mov		rcx, [rbp-96]
 	mov		rdx, [rbp-80]
 	sub		rcx, rdx
 	mov		[rbp-104], rcx
-	mov		rcx, [rbp-104]
 	mov		[rbp-24], rcx
 	call	_read
 	mov		[rbp-112], rax
@@ -298,7 +291,6 @@ L25:
 	mov		rdx, 1
 	sub		rcx, rdx
 	mov		[rbp-16], rcx
-	mov		rcx, [rbp-16]
 	push	qword	rcx
 	call	_factorial
 	add		rsp, 8
@@ -324,7 +316,6 @@ _main:
 	mov		rdx, [rbp-16]
 	add		rcx, rdx
 	mov		[rbp-24], rcx
-	mov		rcx, [rbp-24]
 	push	qword	rcx
 	call	_factorial
 	add		rsp, 8

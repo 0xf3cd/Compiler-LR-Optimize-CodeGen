@@ -85,7 +85,7 @@ const nasm = CG.showNasm(); // 汇编代码
 
 const newNasm = APO.splitASM(nasm);
 
-fs.writeFileSync(nasmFileDir, nasm);
+fs.writeFileSync(nasmFileDir, newNasm);
 spawnSync('nasm', ['-f macho64', nasmFileDir], {});
 execSync(`ld -macosx_version_min 10.7.0 -lSystem -o ${exeFileDir} ${oFileDir}`);
 
